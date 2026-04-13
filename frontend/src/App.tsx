@@ -1,8 +1,5 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import './App.css';
-
-
-
 
 interface Message {
   message: string;
@@ -11,80 +8,97 @@ interface Message {
 }
 
 function App() {
-  const [inputValue, setInputValue] = useState("")
+  const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // const setPartialMessage = (chunk: string, sources: string[] = []) => {
-  //   setMessages(prevMessages => {
-  //     let lastMessage = prevMessages[prevMessages.length - 1];
-  //     if (prevMessages.length === 0 || !lastMessage.isUser) {
-  //       return [...prevMessages.slice(0, -1), {
-  //         message: lastMessage.message + chunk,
-  //         isUser: false,
-  //         sources: lastMessage.sources ? [...lastMessage.sources, ...sources] : sources
-  //       }];
-  //     }
+  // ✅ Typing animation (word-by-word)
+  const typeMessage = (fullText: string, sources: string[]) => {
+    const words = fullText.split(" ");
+    let index = 0;
 
-  //     return [...prevMessages, {message: chunk, isUser: false, sources}];
-  //   })
-  // }
-
-  // function handleReceiveMessage(data: string) {
-  //   let parsedData = JSON.parse(data);
-
-  //   if (parsedData.answer) {
-  //     setPartialMessage(parsedData.answer.content)
-  //   }
-
-  //   if (parsedData.docs) {
-  //     setPartialMessage("", parsedData.docs.map((doc: any) => doc.metadata.source))
-  //   }
-  // }
-
-  const handleSendMessage = async (message: string) => {
-  setInputValue("");
-
-  setMessages(prev => [...prev, { message, isUser: true }]);
-
-  try {
-    const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/rag/invoke`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        input: {
-          question: message,
-        },
-      }),
-    });
-
-    const data = await res.json();
-
-    const answer = data.output.answer;
-    const docs = data.output.docs;
-
+    // Add empty AI message
     setMessages(prev => [
       ...prev,
-      {
-        message: answer,
-        isUser: false,
-        sources: docs?.map((doc: any) => doc.metadata.source) || [],
-      },
+      { message: "", isUser: false, sources }
     ]);
-  } catch (err) {
-    console.error(err);
-  }
-};
+
+    const interval = setInterval(() => {
+      index++;
+
+      setMessages(prev => {
+        const updated = [...prev];
+
+        const lastMsg = {
+          ...updated[updated.length - 1],
+          message: words.slice(0, index).join(" ")
+        };
+
+        updated[updated.length - 1] = lastMsg;
+
+        return updated;
+      });
+
+      if (index >= words.length) {
+        clearInterval(interval);
+        setLoading(false); // ✅ stop loader after typing finishes
+      }
+    }, 30); // adjust speed here
+  };
+
+  const handleSendMessage = async (message: string) => {
+    if (!message) return;
+
+    setInputValue("");
+    setLoading(true);
+
+    // Add user message
+    setMessages(prev => [...prev, { message, isUser: true }]);
+
+    try {
+      const res = await fetch("http://localhost:8000/rag/invoke", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          input: { question: message },
+        }),
+      });
+
+      const data = await res.json();
+
+      const answer = data.output.answer;
+      const docs = data.output.docs;
+
+      const sources = Array.from(
+        new Set(docs?.map((doc: any) => doc.metadata.source))
+      ).slice(0, 3) as string[];
+
+      // ✅ typing animation
+      typeMessage(answer, sources);
+
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
-      handleSendMessage(inputValue.trim())
+      handleSendMessage(inputValue.trim());
     }
-  }
+  };
 
+  // ✅ Clean source names
   function formatSource(source: string) {
-    return source.split("/").pop() || "";
+    const file = source.split(/[/\\]/).pop() || "";
+
+    return file
+      .replace(".pdf", "")
+      .replace(/[-_]/g, " ")
+      .replace(/\b\d+\b/g, "")
+      .slice(0, 50);
   }
 
   return (
@@ -92,40 +106,61 @@ function App() {
       <header className="bg-gray-800 text-white text-center p-4">
         Epic v. Apple Legal Assistant
       </header>
+
       <main className="flex-grow container mx-auto p-4 flex-col">
         <div className="flex-grow bg-gray-700 shadow overflow-hidden sm:rounded-lg">
+          
+          {/* Messages */}
           <div className="border-b border-gray-600 p-4">
             {messages.map((msg, index) => (
-              <div key={index}
-                   className={`p-3 my-3 rounded-lg text-white ml-auto ${msg.isUser ? "bg-gray-800" : "bg-gray-900"}`}>
+              <div
+                key={index}
+                className={`p-3 my-3 rounded-lg text-white ${
+                  msg.isUser ? "bg-gray-800 ml-auto" : "bg-gray-900 mr-auto"
+                }`}
+              >
                 {msg.message}
-                {/*  Source */}
-                {!msg.isUser && (
-                  <div className={"text-xs"}>
-                    <hr className="border-b mt-5 mb-5"></hr>
-                    {msg.sources?.map((source, index) => (
-                      <div>
+
+                {/* Sources */}
+                {!msg.isUser && msg.sources && (
+                  <div className="text-xs mt-3">
+                    <hr className="border-b mb-2" />
+                    {msg.sources.map((source, idx) => (
+                      <div key={idx}>
                         <a
                           target="_blank"
                           download
-                          href={`${"http://localhost:8000"}/rag/static/${encodeURI(formatSource(source))}`}
+                          href={`http://localhost:8000/pdfs/${encodeURIComponent(
+                            source.split(/[/\\]/).pop() || ""
+                          )}`}
                           rel="noreferrer"
-                        >{formatSource(source)}</a>
+                          className="text-blue-400 hover:underline"
+                        >
+                          {formatSource(source)}
+                        </a>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             ))}
+
+            {/* Loader */}
+            {loading && (
+              <div className="text-gray-400 italic">AI is typing...</div>
+            )}
           </div>
+
+          {/* Input */}
           <div className="p-4 bg-gray-800">
             <textarea
-              className="form-textarea w-full p-2 border rounded text-white bg-gray-900 border-gray-600 resize-none h-auto"
+              className="w-full p-2 border rounded text-white bg-gray-900 border-gray-600 resize-none"
               placeholder="Enter your message here..."
-              onKeyUp={handleKeyPress}
+              onKeyDown={handleKeyPress}
               onChange={(e) => setInputValue(e.target.value)}
               value={inputValue}
-            ></textarea>
+            />
+
             <button
               className="mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
               onClick={() => handleSendMessage(inputValue.trim())}
@@ -134,17 +169,15 @@ function App() {
             </button>
           </div>
         </div>
-
       </main>
+
       <footer className="bg-gray-800 text-white text-center p-4 text-xs">
         *AI Agents can make mistakes. Consider checking important information.
-        <br/>
+        <br />
         All training data derived from public records
-        <br/>
-        <br/>
+        <br /><br />
         © 2024 Focused Labs
       </footer>
-
     </div>
   );
 }

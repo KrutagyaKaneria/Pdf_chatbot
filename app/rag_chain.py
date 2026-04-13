@@ -17,15 +17,20 @@ vector_store = PGVector(
     use_jsonb=True,
 )
 
-retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+retriever = vector_store.as_retriever(search_kwargs={"k": 6})
 
 # ====================== Prompt ======================
-template = """You are a helpful assistant.
+template = """You are a legal assistant.
 
-Answer the question ONLY using the provided context.
-If the answer is not clearly available, say "I don't know".
+Answer the question using ONLY the provided context.
 
-Do NOT make assumptions or add extra information.
+Rules:
+- Give a clear and structured answer
+- Use bullet points if helpful
+- Keep it concise (max 5-6 points)
+- Do NOT repeat sentences
+- Do NOT hallucinate
+- If unsure, say "I don't know"
 
 Context:
 {context}
@@ -33,7 +38,8 @@ Context:
 Question:
 {question}
 
-Answer:"""
+Answer:
+"""
 
 ANSWER_PROMPT = ChatPromptTemplate.from_template(template)
 
