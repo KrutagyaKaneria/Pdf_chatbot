@@ -27,6 +27,7 @@ transformers = "^5.5.3"
 accelerate = "^1.13.0"
 langchain-huggingface = "^1.2.1"
 langchain-text-splitters = "^1.1.1"
+langchain-ollama = "^1.1.0"
 
 
 [tool.poetry.group.dev.dependencies]

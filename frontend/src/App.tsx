@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
 import './App.css';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface Message {
   message: string;
@@ -11,6 +11,12 @@ function App() {
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+useEffect(() => {
+  chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+}, [messages]);
 
   // ✅ Typing animation (word-by-word)
   const typeMessage = (fullText: string, sources: string[]) => {
@@ -102,84 +108,90 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
-      <header className="bg-gray-800 text-white text-center p-4">
-        Epic v. Apple Legal Assistant
-      </header>
+  <div className="h-screen flex flex-col bg-[#343541] text-white">
 
-      <main className="flex-grow container mx-auto p-4 flex-col">
-        <div className="flex-grow bg-gray-700 shadow overflow-hidden sm:rounded-lg">
-          
-          {/* Messages */}
-          <div className="border-b border-gray-600 p-4">
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`p-3 my-3 rounded-lg text-white ${
-                  msg.isUser ? "bg-gray-800 ml-auto" : "bg-gray-900 mr-auto"
-                }`}
-              >
-                {msg.message}
-
-                {/* Sources */}
-                {!msg.isUser && msg.sources && (
-                  <div className="text-xs mt-3">
-                    <hr className="border-b mb-2" />
-                    {msg.sources.map((source, idx) => (
-                      <div key={idx}>
-                        <a
-                          target="_blank"
-                          download
-                          href={`http://localhost:8000/pdfs/${encodeURIComponent(
-                            source.split(/[/\\]/).pop() || ""
-                          )}`}
-                          rel="noreferrer"
-                          className="text-blue-400 hover:underline"
-                        >
-                          {formatSource(source)}
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Loader */}
-            {loading && (
-              <div className="text-gray-400 italic">AI is typing...</div>
-            )}
-          </div>
-
-          {/* Input */}
-          <div className="p-4 bg-gray-800">
-            <textarea
-              className="w-full p-2 border rounded text-white bg-gray-900 border-gray-600 resize-none"
-              placeholder="Enter your message here..."
-              onKeyDown={handleKeyPress}
-              onChange={(e) => setInputValue(e.target.value)}
-              value={inputValue}
-            />
-
-            <button
-              className="mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-              onClick={() => handleSendMessage(inputValue.trim())}
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      </main>
-
-      <footer className="bg-gray-800 text-white text-center p-4 text-xs">
-        *AI Agents can make mistakes. Consider checking important information.
-        <br />
-        All training data derived from public records
-        <br /><br />
-        © 2024 Focused Labs
-      </footer>
+    {/* Header */}
+    <div className="p-4 text-center border-b border-gray-700 font-semibold">
+      Epic v. Apple Legal Assistant ⚖️
     </div>
-  );
+
+    {/* Chat Area */}
+    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+
+      <div className="flex flex-col gap-4">
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`flex ${msg.isUser ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap
+              ${msg.isUser
+                ? "bg-green-600 text-white rounded-br-none"
+                : "bg-gray-800 text-gray-100 rounded-bl-none"
+              }`}
+            >
+              {msg.message}
+
+              {/* Sources */}
+              {!msg.isUser && msg.sources && (
+                <div className="mt-3 text-xs text-gray-400">
+                  <hr className="mb-2 border-gray-600" />
+                  {msg.sources.map((source, idx) => (
+                    <div key={idx}>
+                      <a
+                        target="_blank"
+                        rel="noreferrer"
+                        href={`http://localhost:8000/pdfs/${encodeURIComponent(
+                          source.split(/[/\\]/).pop() || ""
+                        )}`}
+                        className="text-blue-400 hover:underline"
+                      >
+                        {formatSource(source)}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Auto scroll */}
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Loader */}
+      {loading && (
+        <div className="text-center text-gray-400 text-sm mt-2">
+          AI is typing...
+        </div>
+      )}
+    </div>
+
+    {/* Input (Sticky Bottom like ChatGPT) */}
+    <div className="p-4 border-t border-gray-700 bg-[#40414f]">
+      <div className="flex gap-2">
+        <textarea
+          className="flex-1 p-3 rounded-lg bg-gray-900 border border-gray-600 text-white resize-none"
+          placeholder="Send a message..."
+          onKeyDown={handleKeyPress}
+          onChange={(e) => setInputValue(e.target.value)}
+          value={inputValue}
+        />
+
+        <button
+          className="bg-green-600 px-5 rounded-lg hover:bg-green-700 disabled:opacity-50"
+          onClick={() => handleSendMessage(inputValue.trim())}
+          disabled={!inputValue.trim()}
+        >
+          Send
+        </button>
+      </div>
+    </div>
+
+  </div>
+);
 }
 
 export default App;

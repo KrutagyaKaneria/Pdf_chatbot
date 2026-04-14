@@ -5,7 +5,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.runnables import RunnableParallel
 from pydantic import BaseModel, Field
 from operator import itemgetter
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 
 # ====================== Embeddings & Vector Store ======================
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -17,7 +17,7 @@ vector_store = PGVector(
     use_jsonb=True,
 )
 
-retriever = vector_store.as_retriever(search_kwargs={"k": 6})
+retriever = vector_store.as_retriever(search_kwargs={"k": 4})
 
 # ====================== Prompt ======================
 template = """You are a legal assistant.
@@ -44,8 +44,8 @@ Answer:
 ANSWER_PROMPT = ChatPromptTemplate.from_template(template)
 
 # ====================== LLM (OLLAMA 🔥) ======================
-llm = Ollama(
-    model="mistral",   # make sure you ran: ollama run mistral
+llm = OllamaLLM(
+    model="phi",   # make sure you ran: ollama run mistral
     temperature=0.3
 )
 
