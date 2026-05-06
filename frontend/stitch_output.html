@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atelier AI | DocChat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;family=Newsreader:opsz,wght@6..72,400;6..72,700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "background": "#111318",
+                      "on-secondary": "#1a3055",
+                      "primary": "#acc7ff",
+                      "surface-tint": "#acc7ff",
+                      "on-tertiary-fixed": "#2d1600",
+                      "on-error-container": "#ffdad6",
+                      "inverse-surface": "#e2e2e9",
+                      "inverse-on-surface": "#2e3036",
+                      "error": "#ffb4ab",
+                      "secondary": "#b2c7f5",
+                      "surface-container-highest": "#33353a",
+                      "secondary-container": "#344970",
+                      "on-background": "#e2e2e9",
+                      "on-secondary-container": "#a4b8e6",
+                      "surface-dim": "#111318",
+                      "secondary-fixed": "#d7e2ff",
+                      "inverse-primary": "#005bbf",
+                      "error-container": "#93000a",
+                      "secondary-fixed-dim": "#b2c7f5",
+                      "tertiary": "#ffb873",
+                      "surface-container-lowest": "#0c0e13",
+                      "on-primary": "#002f68",
+                      "on-primary-fixed": "#001a40",
+                      "primary-container": "#508ff8",
+                      "on-tertiary": "#4b2800",
+                      "on-surface-variant": "#c2c6d5",
+                      "surface": "#111318",
+                      "surface-variant": "#33353a",
+                      "outline-variant": "#424753",
+                      "on-primary-container": "#00285b",
+                      "surface-bright": "#37393f",
+                      "on-surface": "#e2e2e9",
+                      "tertiary-container": "#d37b02",
+                      "on-error": "#690005",
+                      "outline": "#8c909e",
+                      "primary-fixed-dim": "#acc7ff",
+                      "surface-container-low": "#1a1b21",
+                      "on-primary-fixed-variant": "#004492",
+                      "on-tertiary-fixed-variant": "#6a3b00",
+                      "on-secondary-fixed-variant": "#32476d",
+                      "tertiary-fixed-dim": "#ffb873",
+                      "on-tertiary-container": "#412200",
+                      "surface-container-high": "#282a2f",
+                      "tertiary-fixed": "#ffdcbf",
+                      "surface-container": "#1e1f25",
+                      "primary-fixed": "#d7e2ff",
+                      "on-secondary-fixed": "#011a3f"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "fontFamily": {
+                      "headline": ["Instrument Serif", "serif"],
+                      "body": ["Plus Jakarta Sans", "sans-serif"],
+                      "label": ["Plus Jakarta Sans", "sans-serif"]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #111318;
+            color: #e2e2e9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-image: radial-gradient(circle at 50% -20%, #1e1f25 0%, #111318 100%);
+        }
+        .grain {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+        .glass-sidebar {
+            background: rgba(12, 14, 19, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .intelligence-pulse {
+            width: 8px;
+            height: 8px;
+            background: #acc7ff;
+            border-radius: 50%;
+            filter: blur(2px);
+            box-shadow: 0 0 10px #acc7ff;
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+<div class="grain"></div>
+<div class="flex h-screen w-full relative">
+<!-- SideNavBar - JSON Execution -->
+<aside class="h-screen w-72 glass-sidebar flex flex-col py-8 gap-4 z-40 border-r border-white/5">
+<div class="px-8 mb-8">
+<h1 class="font-headline text-3xl italic text-slate-100 tracking-tight">DocChat</h1>
+</div>
+<!-- Upload Zone -->
+<div class="px-6 mb-6">
+<div class="w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-white/10 hover:border-primary/50 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 bg-white/5 group">
+<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">upload_file</span>
+</div>
+<p class="font-body text-sm font-medium text-on-surface-variant">Drop your PDF here</p>
+</div>
+</div>
+<div class="px-4 flex flex-col gap-2 overflow-y-auto flex-grow">
+<div class="px-4 py-2">
+<span class="font-label text-[0.6875rem] uppercase tracking-widest text-outline">Library</span>
+</div>
+<!-- PDF Document Card - Active -->
+<div class="bg-blue-500/10 text-blue-400 border-r-2 border-blue-500 px-4 py-3 rounded-l-xl flex items-center gap-3 group cursor-pointer transition-all">
+<span class="material-symbols-outlined text-blue-400">description</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-semibold truncate">Financial_Report_2023.pdf</span>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span class="text-[0.7rem] text-blue-400/70">Ready • 14 pages</span>
+</div>
+</div>
+</div>
+<!-- PDF Document Card - Inactive -->
+<div class="text-slate-500 hover:text-slate-300 hover:bg-white/5 px-4 py-3 rounded-xl flex items-center gap-3 group cursor-pointer transition-all">
+<span class="material-symbols-outlined">description</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-medium truncate">Marketing_Strategy_Q4.pdf</span>
+<span class="text-[0.7rem]">2.1 MB</span>
+</div>
+</div>
+<div class="text-slate-500 hover:text-slate-300 hover:bg-white/5 px-4 py-3 rounded-xl flex items-center gap-3 group cursor-pointer transition-all">
+<span class="material-symbols-outlined">description</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-medium truncate">Product_Manifesto_2024.pdf</span>
+<span class="text-[0.7rem]">0.8 MB</span>
+</div>
+</div>
+</div>
+<!-- Footer Action -->
+<div class="px-6 pt-4 border-t border-white/5 flex flex-col gap-3">
+<div class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-300 cursor-pointer transition-colors group">
+<span class="material-symbols-outlined group-hover:translate-x-1 duration-200">settings</span>
+<span class="text-sm font-medium font-body">Settings</span>
+</div>
+</div>
+</aside>
+<!-- Main Panel -->
+<main class="flex-grow flex flex-col bg-background relative overflow-hidden">
+<!-- TopNavBar - JSON Execution -->
+<header class="bg-slate-950/70 backdrop-blur-xl border-b border-white/5 px-6 h-16 flex justify-between items-center z-50">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<h2 class="font-headline text-lg italic text-slate-100">Financial_Report_2023.pdf</h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-1">
+<div class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/5 rounded-full cursor-pointer transition-colors">
+<span class="material-symbols-outlined">help_outline</span>
+</div>
+<div class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/5 rounded-full cursor-pointer transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</div>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary-container px-4 py-2 rounded-full text-xs font-bold tracking-wide flex items-center gap-2 hover:shadow-[0_0_15px_rgba(172,199,255,0.3)] transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">add</span>
+                        New Chat
+                    </button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-white/10 ring-2 ring-primary/20">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="portrait of a professional creative designer with subtle artistic lighting and neutral dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCq8MjpCxsshrhwfJKSqicy75tPh7Rp-Tiea8DotuNDYHzYqO0rztVBlo2WQb67UTogwKmtuswi-25jndxMCnbf8_MJPQtF3s0SnO79uQfEf8y9aL5uROQL1YRmgLv_NjwDQ-WM98KX9n8Z4h6exEYGBlqaMmuBREirQ1XBfZPI3ntWFjJ2Yj9j-GvbsdnFynMFsj8CNcHuxzJjFJBUIEVpayEQj9FudTMiuI-Jn8xZWI-XbY2ddc34sChLWH0ZOvyY7fExBIQ6qU4"/>
+</div>
+</div>
+</header>
+<!-- Chat Area -->
+<div class="flex-grow overflow-y-auto px-8 py-12 flex flex-col gap-12 max-w-4xl mx-auto w-full">
+<!-- Empty State Content -->
+<div class="flex flex-col items-center justify-center text-center py-10">
+<div class="w-20 h-20 bg-surface-container-low rounded-3xl mb-8 flex items-center justify-center border border-white/5 relative">
+<span class="material-symbols-outlined text-4xl text-primary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<div class="absolute -right-1 -bottom-1 intelligence-pulse"></div>
+</div>
+<h3 class="font-headline text-4xl text-on-surface mb-4">Ask anything about your PDF</h3>
+<p class="text-on-surface-variant font-body max-w-sm mb-10 leading-relaxed">I've analyzed the 14 pages of Financial_Report_2023. Try asking me one of these:</p>
+<div class="flex flex-wrap justify-center gap-3">
+<button class="px-5 py-2.5 rounded-full bg-surface-container-high border border-white/5 text-sm font-medium hover:bg-surface-bright transition-all text-on-surface">Summarize this document</button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-high border border-white/5 text-sm font-medium hover:bg-surface-bright transition-all text-on-surface">What are the key points?</button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-high border border-white/5 text-sm font-medium hover:bg-surface-bright transition-all text-on-surface">List all headings</button>
+</div>
+</div>
+<!-- Chat Messages (Visual Mockup) -->
+<div class="space-y-8 pointer-events-none">
+<!-- AI Bubble -->
+<div class="flex gap-4 items-start">
+<div class="w-10 h-10 rounded-xl bg-surface-container-highest flex items-center justify-center shrink-0 border border-white/10">
+<span class="material-symbols-outlined text-primary text-xl">smart_toy</span>
+</div>
+<div class="bg-surface-container-highest rounded-2xl rounded-tl-none p-5 max-w-2xl border-t border-white/5 shadow-xl">
+<p class="text-on-surface leading-relaxed text-[0.95rem]">Based on the executive summary on page 2, the primary growth drivers for fiscal year 2023 were expansion into the APAC market and a 15% reduction in operational overhead.</p>
+</div>
+</div>
+<!-- User Bubble -->
+<div class="flex justify-end gap-4 items-start">
+<div class="bg-primary-container text-on-primary-container rounded-2xl rounded-tr-none px-6 py-4 max-w-xl shadow-lg font-medium">
+<p class="leading-relaxed">Can you find any mention of the Q4 revenue target?</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Bar -->
+<div class="p-8 pb-12 pt-0 max-w-4xl mx-auto w-full">
+<div class="relative group">
+<div class="absolute inset-0 bg-primary/10 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity rounded-full"></div>
+<div class="relative flex items-center bg-surface-container-highest rounded-full px-6 py-4 border-b-2 border-transparent focus-within:border-primary transition-all shadow-2xl">
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder-on-surface-variant font-body py-1 pr-4" placeholder="Ask a question about your PDF..." type="text"/>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">attach_file</span>
+<button class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-90 transition-transform shadow-lg">
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Asymmetric Background Elements -->
+<div class="fixed top-1/4 -right-24 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
+<div class="fixed bottom-1/4 -left-24 w-64 h-64 bg-tertiary/5 rounded-full blur-[100px] pointer-events-none"></div>
+</body></html>

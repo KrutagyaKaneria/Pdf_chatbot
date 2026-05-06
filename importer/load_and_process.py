@@ -18,14 +18,13 @@ loader = DirectoryLoader(
 docs = loader.load()
 
 # ====================== Embeddings ======================
-embeddings = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2"
-)
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-# ====================== NEW CHUNKING (🔥 FIX) ======================
+# ====================== Better Chunking ======================
 text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=800,
-    chunk_overlap=100
+    chunk_size=750,      # Slightly reduced for faster retrieval
+    chunk_overlap=120,
+    separators=["\n\n", "\n", ". ", " ", ""]
 )
 
 chunks = text_splitter.split_documents(docs)
@@ -34,7 +33,6 @@ print(f"📄 Total chunks created: {len(chunks)}")
 
 # ====================== Store in PGVector ======================
 PG_COLLECTION_NAME = "pdf_rag_vectors"
-
 CONNECTION_STRING = "postgresql+psycopg://postgres:postgres@127.0.0.1:5433/postgres"
 
 db = PGVector.from_documents(
@@ -42,7 +40,8 @@ db = PGVector.from_documents(
     embedding=embeddings,
     collection_name=PG_COLLECTION_NAME,
     connection_string=CONNECTION_STRING,
-    pre_delete_collection=True
+    pre_delete_collection=True,
+    use_jsonb=True
 )
 
 print("✅ Data stored in PGVector successfully!")
