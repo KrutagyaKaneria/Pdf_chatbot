@@ -82,6 +82,7 @@ class QuestionInput(BaseModel):
     question: str
     collection_name: str
     chat_history: list[dict[str, str]] = Field(default_factory=list)
+    memory_summary: str = ""
 
 
 class RagResult(BaseModel):

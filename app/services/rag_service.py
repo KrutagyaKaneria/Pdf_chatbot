@@ -25,7 +25,13 @@ class RAGService:
             api_key=self.settings.groq_api_key,
         )
 
-    def answer(self, question: str, collection_name: str, chat_history: list[dict[str, str]]) -> RagResult:
+    def answer(
+        self,
+        question: str,
+        collection_name: str,
+        chat_history: list[dict[str, str]],
+        memory_summary: str = "",
+    ) -> RagResult:
         question = (question or "").strip()
         collection_name = (collection_name or "").strip()
         if not question:
@@ -34,7 +40,7 @@ class RAGService:
             raise ValidationAppError("collection_name is required")
 
         lc_history = self._to_langchain_messages(chat_history)
-        final_question = self._contextualize_question(question, lc_history)
+        final_question = self._contextualize_question(question, lc_history, memory_summary=memory_summary)
 
         try:
             vector_store = get_vector_store(collection_name)
@@ -58,7 +64,12 @@ class RAGService:
         context = self._format_docs(docs)
         try:
             final_prompt = qa_prompt.invoke(
-                {"context": context, "chat_history": lc_history, "question": final_question}
+                {
+                    "context": context,
+                    "memory_summary": (memory_summary or "").strip(),
+                    "chat_history": lc_history,
+                    "question": final_question,
+                }
             )
             response = self.llm.invoke(final_prompt)
         except Exception as exc:
@@ -71,11 +82,17 @@ class RAGService:
             collection_name=collection_name,
         )
 
-    def _contextualize_question(self, question: str, chat_history):
-        if not chat_history:
+    def _contextualize_question(self, question: str, chat_history, memory_summary: str = ""):
+        if not chat_history and not (memory_summary or "").strip():
             return question
         try:
-            prompt = contextualize_q_prompt.invoke({"chat_history": chat_history, "question": question})
+            prompt = contextualize_q_prompt.invoke(
+                {
+                    "memory_summary": (memory_summary or "").strip(),
+                    "chat_history": chat_history,
+                    "question": question,
+                }
+            )
             response = self.llm.invoke(prompt)
             return response.content.strip()
         except Exception as exc:
@@ -118,6 +135,7 @@ def rag_pipeline(input_dict: dict) -> dict:
         question=input_dict.get("question", ""),
         collection_name=input_dict.get("collection_name", ""),
         chat_history=input_dict.get("chat_history", []),
+        memory_summary=input_dict.get("memory_summary", ""),
     )
     return result.model_dump()
 

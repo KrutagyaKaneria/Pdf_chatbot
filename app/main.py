@@ -9,6 +9,7 @@ from app.core.config import Settings, get_settings
 from app.core.handlers import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import register_middleware
+from app.db.init_db import init_db
 from app.services.rag_service import final_chain
 
 
@@ -19,6 +20,8 @@ def create_app() -> FastAPI:
     settings: Settings = get_settings()
     configure_logging(settings)
     settings.validate_runtime()
+
+    init_db()
 
     app = FastAPI(title=settings.app_name)
     app.add_middleware(
