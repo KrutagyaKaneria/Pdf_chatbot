@@ -65,7 +65,8 @@ function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/chats`);
       if (!res.ok) throw new Error("Unable to load chats");
-      setChats(await res.json());
+      const data = await res.json();
+      setChats(Array.isArray(data) ? data : data.data?.chats || data.chats || []);
     } catch (err) {
       console.error(err);
     }
@@ -140,8 +141,9 @@ function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Chat request failed");
 
-      setActiveChatId(data.chat_id);
-      typeMessage(data.answer, data.docs?.slice(0, 4) || []);
+      const chatData = data.data || data;
+      setActiveChatId(chatData.chat_id);
+      typeMessage(chatData.answer, chatData.docs?.slice(0, 4) || []);
       await refreshChats();
     } catch (err) {
       const messageText = err instanceof Error ? err.message : "Chat request failed";
@@ -158,15 +160,16 @@ function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Unable to open chat");
 
-      setActiveChatId(data.chat_id);
+      const chatData = data.data || data;
+      setActiveChatId(chatData.chat_id);
       const openedCollection = {
-        collectionName: data.collection_name,
+        collectionName: chatData.collection_name,
         filename: activeCollection?.filename || "Uploaded PDF",
       };
       setActiveCollection(openedCollection);
       window.localStorage.setItem("pdf_chatbot_collection", JSON.stringify(openedCollection));
       setMessages(
-        data.messages.map((msg: { role: string; content: string }) => ({
+        chatData.messages.map((msg: { role: string; content: string }) => ({
           message: msg.content,
           isUser: msg.role === "user",
         }))
