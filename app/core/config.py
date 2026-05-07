@@ -35,6 +35,10 @@ class Settings(BaseModel):
     retriever_fetch_k: int = 20
     retriever_lambda_mult: float = 0.7
     history_message_limit: int = 6
+    history_token_budget: int = 1200
+
+    memory_summary_max_tokens: int = 256
+    memory_summarize_min_messages: int = 6
 
     log_level: str = "INFO"
 
@@ -90,6 +94,9 @@ def get_settings() -> Settings:
         retriever_fetch_k=int(os.getenv("RETRIEVER_FETCH_K", "20")),
         retriever_lambda_mult=float(os.getenv("RETRIEVER_LAMBDA_MULT", "0.7")),
         history_message_limit=int(os.getenv("HISTORY_MESSAGE_LIMIT", "6")),
+        history_token_budget=int(os.getenv("HISTORY_TOKEN_BUDGET", "1200")),
+        memory_summary_max_tokens=int(os.getenv("MEMORY_SUMMARY_MAX_TOKENS", "256")),
+        memory_summarize_min_messages=int(os.getenv("MEMORY_SUMMARIZE_MIN_MESSAGES", "6")),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
