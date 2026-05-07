@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 
 from app.core.config import Settings, get_settings
 from app.models.schemas import (
@@ -31,7 +32,7 @@ async def upload_pdf(
 ):
     file_path = save_upload_file(file, settings.upload_dir, settings.max_upload_size_bytes)
     try:
-        collection_name = pdf_service.process_uploaded_pdf(file_path)
+        collection_name = await run_in_threadpool(pdf_service.process_uploaded_pdf, file_path)
     except Exception:
         file_path.unlink(missing_ok=True)
         raise
@@ -75,10 +76,11 @@ async def get_chat(chat_id: str, service: ChatService = Depends(get_chat_service
 
 @router.post("/chat")
 async def send_message(request: ChatRequest, service: ChatService = Depends(get_chat_service)):
-    data = service.send_message(
-        question=request.question,
-        collection_name=request.collection_name,
-        chat_id=request.chat_id,
+    data = await run_in_threadpool(
+        service.send_message,
+        request.question,
+        request.collection_name,
+        request.chat_id,
     )
     return success_response(
         "Answer generated successfully",

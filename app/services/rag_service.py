@@ -1,4 +1,5 @@
 import os
+import json
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
@@ -10,6 +11,7 @@ from app.core.logging import get_logger
 from app.db.pgvector import get_vector_store
 from app.models.schemas import QuestionInput, RagResult, SourceReference
 from app.prompts.rag_prompts import contextualize_q_prompt, qa_prompt
+from app.services.cache_service import CacheKey, CacheService, stable_hash
 
 
 logger = get_logger(__name__)
@@ -18,6 +20,7 @@ logger = get_logger(__name__)
 class RAGService:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
+        self.cache = CacheService(self.settings)
         self.llm = ChatGroq(
             model=self.settings.groq_model,
             temperature=self.settings.llm_temperature,
@@ -42,19 +45,7 @@ class RAGService:
         lc_history = self._to_langchain_messages(chat_history)
         final_question = self._contextualize_question(question, lc_history, memory_summary=memory_summary)
 
-        try:
-            vector_store = get_vector_store(collection_name)
-            retriever = vector_store.as_retriever(
-                search_type="mmr",
-                search_kwargs={
-                    "k": self.settings.retriever_k,
-                    "fetch_k": self.settings.retriever_fetch_k,
-                    "lambda_mult": self.settings.retriever_lambda_mult,
-                },
-            )
-            docs = retriever.invoke(final_question)
-        except Exception as exc:
-            raise VectorStoreError("Vector retrieval failed", details={"reason": str(exc)}) from exc
+        docs = self._retrieve_docs(collection_name=collection_name, final_question=final_question)
 
         logger.info(
             "Retrieved RAG documents",
@@ -62,6 +53,24 @@ class RAGService:
         )
 
         context = self._format_docs(docs)
+
+        answer_cache_key = CacheKey(
+            "ans",
+            (
+                collection_name,
+                stable_hash(final_question),
+                stable_hash(context),
+                stable_hash((memory_summary or "").strip()),
+            ),
+        )
+        cached_answer = self.cache.get_json(answer_cache_key)
+        if isinstance(cached_answer, dict) and cached_answer.get("answer"):
+            return RagResult(
+                answer=str(cached_answer.get("answer")),
+                docs=self._extract_sources(docs),
+                collection_name=collection_name,
+            )
+
         try:
             final_prompt = qa_prompt.invoke(
                 {
@@ -76,11 +85,72 @@ class RAGService:
             raise LLMError("LLM generation failed", details={"reason": str(exc)}) from exc
 
         answer = response.content if hasattr(response, "content") else str(response)
+
+        self.cache.set_json(
+            answer_cache_key,
+            {"answer": answer},
+            ttl_seconds=self.settings.cache_answer_ttl_seconds,
+        )
         return RagResult(
             answer=answer,
             docs=self._extract_sources(docs),
             collection_name=collection_name,
         )
+
+    def _retrieve_docs(self, collection_name: str, final_question: str):
+        retriever_params = {
+            "search_type": "mmr",
+            "k": self.settings.retriever_k,
+            "fetch_k": self.settings.retriever_fetch_k,
+            "lambda_mult": self.settings.retriever_lambda_mult,
+        }
+        retrieval_key = CacheKey(
+            "ret",
+            (
+                collection_name,
+                stable_hash(final_question),
+                stable_hash(json.dumps(retriever_params, sort_keys=True)),
+            ),
+        )
+
+        cached = self.cache.get_json(retrieval_key)
+        if isinstance(cached, list) and cached:
+            # Rehydrate as lightweight objects compatible with _format_docs/_extract_sources.
+            class _Doc:
+                def __init__(self, page_content: str, metadata: dict):
+                    self.page_content = page_content
+                    self.metadata = metadata
+
+            return [_Doc(d.get("page_content", ""), d.get("metadata", {})) for d in cached]
+
+        try:
+            vector_store = get_vector_store(collection_name)
+            retriever = vector_store.as_retriever(
+                search_type="mmr",
+                search_kwargs={
+                    "k": self.settings.retriever_k,
+                    "fetch_k": self.settings.retriever_fetch_k,
+                    "lambda_mult": self.settings.retriever_lambda_mult,
+                },
+            )
+            docs = retriever.invoke(final_question)
+        except Exception as exc:
+            raise VectorStoreError("Vector retrieval failed", details={"reason": str(exc)}) from exc
+
+        try:
+            serializable = [
+                {"page_content": getattr(d, "page_content", ""), "metadata": getattr(d, "metadata", {})}
+                for d in docs
+            ]
+            self.cache.set_json(
+                retrieval_key,
+                serializable,
+                ttl_seconds=self.settings.cache_retrieval_ttl_seconds,
+            )
+        except Exception:
+            pass
+
+        return docs
 
     def _contextualize_question(self, question: str, chat_history, memory_summary: str = ""):
         if not chat_history and not (memory_summary or "").strip():
