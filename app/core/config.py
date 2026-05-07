@@ -22,6 +22,14 @@ class Settings(BaseModel):
     llm_temperature: float = 0.2
     llm_max_tokens: int = 512
 
+    redis_url: str = "redis://127.0.0.1:6379/0"
+    cache_enabled: bool = True
+    cache_default_ttl_seconds: int = 300
+    cache_embeddings_ttl_seconds: int = 60 * 60 * 24 * 30
+    cache_retrieval_ttl_seconds: int = 120
+    cache_answer_ttl_seconds: int = 60
+    cache_memory_ttl_seconds: int = 60
+
     database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:5433/postgres"
     upload_dir: Path = APP_DIR / "uploads"
     max_upload_size_mb: int = 25
@@ -39,6 +47,10 @@ class Settings(BaseModel):
 
     memory_summary_max_tokens: int = 256
     memory_summarize_min_messages: int = 6
+
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    db_pool_timeout: int = 30
 
     log_level: str = "INFO"
 
@@ -77,6 +89,13 @@ def get_settings() -> Settings:
         groq_model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
         llm_max_tokens=int(os.getenv("LLM_MAX_TOKENS", "512")),
+        redis_url=os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"),
+        cache_enabled=os.getenv("CACHE_ENABLED", "true").lower() == "true",
+        cache_default_ttl_seconds=int(os.getenv("CACHE_DEFAULT_TTL_SECONDS", "300")),
+        cache_embeddings_ttl_seconds=int(os.getenv("CACHE_EMBEDDINGS_TTL_SECONDS", str(60 * 60 * 24 * 30))),
+        cache_retrieval_ttl_seconds=int(os.getenv("CACHE_RETRIEVAL_TTL_SECONDS", "120")),
+        cache_answer_ttl_seconds=int(os.getenv("CACHE_ANSWER_TTL_SECONDS", "60")),
+        cache_memory_ttl_seconds=int(os.getenv("CACHE_MEMORY_TTL_SECONDS", "60")),
         database_url=os.getenv(
             "DATABASE_URL",
             os.getenv(
@@ -97,6 +116,9 @@ def get_settings() -> Settings:
         history_token_budget=int(os.getenv("HISTORY_TOKEN_BUDGET", "1200")),
         memory_summary_max_tokens=int(os.getenv("MEMORY_SUMMARY_MAX_TOKENS", "256")),
         memory_summarize_min_messages=int(os.getenv("MEMORY_SUMMARIZE_MIN_MESSAGES", "6")),
+        db_pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+        db_max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
+        db_pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "30")),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )
     settings.upload_dir.mkdir(parents=True, exist_ok=True)

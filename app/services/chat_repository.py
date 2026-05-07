@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ChatNotFoundError
 from app.db.chat_models import ChatMessage, ChatSession
 from app.db.session import create_db_session
+from app.services.cache_service import CacheKey, CacheService
 
 
 def _utc_now() -> datetime:
@@ -17,7 +18,7 @@ def _utc_now() -> datetime:
 
 class ChatRepository:
     def __init__(self) -> None:
-        pass
+        self.cache = CacheService()
 
     def list_chats(self) -> list[ChatSession]:
         with create_db_session() as db:
@@ -121,9 +122,21 @@ class ChatRepository:
             db.execute(stmt)
             db.commit()
 
+        # Invalidate cached memory summary state for this chat.
+        self.cache.delete(CacheKey("memsum", (chat_id,)))
+
     def get_summary_state(self, chat_id: str) -> tuple[str | None, int]:
+        cache_key = CacheKey("memsum", (chat_id,))
+        cached = self.cache.get_json(cache_key)
+        if isinstance(cached, dict) and "summary" in cached and "until" in cached:
+            return cached.get("summary"), int(cached.get("until") or 0)
+
         with create_db_session() as db:
             session = db.get(ChatSession, chat_id)
             if not session:
                 raise ChatNotFoundError("Chat not found")
-            return session.summary, int(session.summary_until_message_id or 0)
+            summary = session.summary
+            until = int(session.summary_until_message_id or 0)
+
+        self.cache.set_json(cache_key, {"summary": summary, "until": until}, ttl_seconds=60)
+        return summary, until
