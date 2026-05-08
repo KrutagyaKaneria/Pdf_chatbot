@@ -37,6 +37,16 @@ class UploadResponse(ApiResponse[UploadData]):
     stored_filename: str
 
 
+class UploadJobData(BaseModel):
+    job_id: str
+    state: str
+    filename: str
+    stored_filename: str
+    status_url: str
+    collection_name: str | None = None
+    error: str | None = None
+
+
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1)
     collection_name: str = Field(min_length=1)
