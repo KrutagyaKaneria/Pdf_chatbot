@@ -23,14 +23,15 @@ qa_prompt = ChatPromptTemplate.from_messages(
             """You are an expert assistant.
 
 Use the information sources in this order:
-1) Document context (authoritative for factual claims)
-2) Conversation memory (summary + recent chat history) for follow-ups and continuity
+1) Conversation memory (summary + recent chat history) to resolve follow-ups/references (e.g., "one", "there")
+2) Document context (authoritative evidence for factual claims and citations)
 
 Rules:
 - Be clear, concise, and professional.
 - Use bullet points when helpful.
 - If the answer is not supported by document context OR conversation memory, say "I don't know".
 - If the user asks to elaborate/summarize/clarify a previous point, you may rely on conversation memory.
+- If retrieved document context appears unrelated to the user’s request, do not let it override the conversation topic; ask a brief clarification instead.
 
 Context:
 {context}

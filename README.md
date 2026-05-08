@@ -1,79 +1,80 @@
 # pdf_chatbot
 
-## Installation
+PDF chat app with FastAPI + PGVector RAG, conversational memory (DB-backed) + caching (Redis), plus Phase 4 optimizations:
+- Semantic cache (embedding similarity)
+- Retrieval compression (token budget)
+- Token/latency metrics
+- Background PDF processing (queue + job status)
+- SSE streaming chat endpoint
 
-Install the LangChain CLI if you haven't yet
+## Quickstart (local)
 
-```bash
-pip install -U langchain-cli
+### 1) Start infra (Postgres pgvector + Redis)
+
+```powershell
+docker compose up -d
 ```
 
-## Adding packages
+### 2) Backend
 
-```bash
-# adding packages from
-# https://github.com/langchain-ai/langchain/tree/master/templates
-langchain app add $PROJECT_NAME
-
-# adding custom GitHub repo packages
-langchain app add --repo $OWNER/$REPO
-# or with whole git string (supports other git providers):
-# langchain app add git+https://github.com/hwchase17/chain-of-verification
-
-# with a custom api mount point (defaults to `/{package_name}`)
-langchain app add $PROJECT_NAME --api_path=/my/custom/path/rag
+```powershell
+cd "D:\coding gita\pdf_chatbot"
+poetry install
+poetry run python app/server.py
 ```
 
-Note: you remove packages by their api path
+Backend defaults to `http://localhost:8000`.
 
-```bash
-langchain app remove my/custom/path/rag
+### 3) Frontend
+
+```powershell
+cd "D:\coding gita\pdf_chatbot\frontend"
+npm install
+npm start
 ```
 
-## Setup LangSmith (Optional)
+Frontend defaults to `http://localhost:3000`.
 
-LangSmith will help us trace, monitor and debug LangChain applications.
-You can sign up for LangSmith [here](https://smith.langchain.com/).
-If you don't have access, you can skip this section
+## Configuration
 
-```shell
-export LANGSMITH_TRACING=true
-export LANGSMITH_API_KEY=<your-api-key>
-export LANGSMITH_PROJECT=<your-project>  # if not specified, defaults to "default"
+App settings are read from `app/.env` (loaded automatically) and environment variables.
+
+Required:
+- `GROQ_API_KEY`
+- `DATABASE_URL` (default points to dockerized Postgres on `127.0.0.1:5433`)
+
+Optional (recommended):
+- `REDIS_URL` (default `redis://127.0.0.1:6379/0`)
+- `CACHE_ENABLED` (`true`/`false`)
+
+Phase 4 toggles:
+- `SEMANTIC_CACHE_ENABLED`, `SEMANTIC_CACHE_SIMILARITY_THRESHOLD`, `SEMANTIC_CACHE_MAX_ENTRIES`, `SEMANTIC_CACHE_TTL_SECONDS`
+- `CONTEXT_TOKEN_BUDGET`, `CONTEXT_MAX_CHUNKS`, `CONTEXT_MAX_CHARS_PER_CHUNK`
+- `METRICS_REDIS_ENABLED`
+- `PDF_BACKGROUND_ENABLED`, `PDF_QUEUE_NAME`, `PDF_JOB_TTL_SECONDS`, `PDF_JOB_MAX_RETRIES`
+
+## API
+
+### Upload + indexing
+
+- `POST /upload-pdf` (sync)
+- `POST /upload-pdf?background=true` (async, returns a job)
+- `GET /upload-pdf/jobs/{job_id}` (job status; includes `collection_name` when done)
+
+To run the background worker:
+
+```powershell
+cd "D:\coding gita\pdf_chatbot"
+poetry run python -m app.worker
 ```
 
-## Launch LangServe
+### Chat
 
-```bash
-langchain serve
-```
+- `POST /chat` (non-streaming JSON response; persists to chat memory)
+- `POST /chat/stream` (SSE stream; emits `meta`, `sources`, `token`, `done` events)
+- `GET /chats`
+- `GET /chats/{chat_id}`
 
-## Running in Docker
+### LangServe
 
-This project folder includes a Dockerfile that allows you to easily build and host your LangServe app.
-
-### Building the Image
-
-To build the image, you simply:
-
-```shell
-docker build . -t my-langserve-app
-```
-
-If you tag your image with something other than `my-langserve-app`,
-note it for use in the next step.
-
-### Running the Image Locally
-
-To run the image, you'll need to include any environment variables
-necessary for your application.
-
-In the below example, we inject the `OPENAI_API_KEY` environment
-variable with the value set in my local environment
-(`$OPENAI_API_KEY`)
-
-We also expose port 8080 with the `-p 8080:8080` option.
-
-```shell
-docker run -e OPENAI_API_KEY=$OPENAI_API_KEY -p 8080:8080 my-langserve-app
-```
+If mounted, the LangServe chain remains available (see app setup in [app/main.py](app/main.py)).

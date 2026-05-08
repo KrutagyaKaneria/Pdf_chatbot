@@ -28,11 +28,33 @@ class PDFProcessingService:
         if not docs:
             raise InvalidPDFError("No readable pages found in the uploaded PDF")
 
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=self.settings.chunk_size,
-            chunk_overlap=self.settings.chunk_overlap,
-        )
-        chunks = text_splitter.split_documents(docs)
+        chunks = []
+        if (self.settings.chunking_strategy or "").strip().lower() == "semantic":
+            try:
+                from langchain_experimental.text_splitter import SemanticChunker
+
+                semantic_splitter = SemanticChunker(get_embeddings())
+                chunks = semantic_splitter.split_documents(docs)
+            except Exception as exc:
+                logger.info(
+                    "Semantic chunking unavailable; falling back to recursive",
+                    extra={"reason": str(exc)},
+                )
+
+        if not chunks:
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=self.settings.chunk_size,
+                chunk_overlap=self.settings.chunk_overlap,
+                separators=["\n\n", "\n", ". ", " ", ""],
+            )
+            chunks = text_splitter.split_documents(docs)
+
+        for idx, ch in enumerate(chunks):
+            ch.metadata = ch.metadata or {}
+            ch.metadata.setdefault("chunk_index", idx)
+            src = Path(str(ch.metadata.get("source", path.name))).name
+            page = ch.metadata.get("page", "")
+            ch.metadata.setdefault("chunk_id", f"{src}:{page}:{idx}")
         if not chunks:
             raise InvalidPDFError("No extractable text found in the uploaded PDF")
 

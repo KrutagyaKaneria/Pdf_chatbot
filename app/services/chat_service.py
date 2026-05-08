@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 
 from app.core.exceptions import ChatNotFoundError, CollectionMismatchError, ValidationAppError
 from app.models.schemas import ChatData, ChatDetailData, ChatMessage, ChatSummary
@@ -89,6 +90,66 @@ class ChatService:
             answer=result.answer,
             docs=result.docs,
             title=session.title,
+        )
+
+    def send_message_stream(self, question: str, collection_name: str, chat_id: str | None = None):
+        question = (question or "").strip()
+        collection_name = (collection_name or "").strip()
+        if not question or not collection_name:
+            raise ValidationAppError("question and collection_name are required")
+
+        if not chat_id:
+            new_session = self._create_chat(question, collection_name)
+            chat_id = new_session.chat_id
+        else:
+            existing = self.repo.get_chat(chat_id)
+            if existing.collection_name != collection_name:
+                raise CollectionMismatchError("chat_id belongs to a different collection_name")
+
+        def sse(event: str, data: dict) -> str:
+            return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+        yield sse("meta", {"chat_id": chat_id, "collection_name": collection_name})
+
+        memory = self.memory_service.get_memory(chat_id)
+        chunks_iter, sources = self.rag_service.stream_answer(
+            question=question,
+            collection_name=collection_name,
+            chat_history=memory.recent_messages,
+            memory_summary=memory.summary,
+        )
+
+        yield sse("sources", {"docs": [s.model_dump() for s in sources]})
+
+        self.repo.add_message(chat_id, role="user", content=question, token_estimate=estimate_tokens(question))
+
+        answer_parts: list[str] = []
+        try:
+            for chunk in chunks_iter:
+                answer_parts.append(str(chunk))
+                yield sse("token", {"text": str(chunk)})
+        except Exception as exc:
+            yield sse("error", {"message": str(exc)})
+            raise
+
+        answer = "".join(answer_parts).strip()
+        self.repo.add_message(
+            chat_id,
+            role="assistant",
+            content=answer,
+            token_estimate=estimate_tokens(answer),
+        )
+        self.memory_service.maybe_summarize(chat_id)
+        session = self.repo.get_chat(chat_id)
+
+        yield sse(
+            "done",
+            {
+                "chat_id": chat_id,
+                "answer": answer,
+                "docs": [s.model_dump() for s in sources],
+                "title": session.title,
+            },
         )
 
     def _create_chat(self, question: str, collection_name: str):
