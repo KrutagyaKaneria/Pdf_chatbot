@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import json
+from pathlib import Path
 
 from app.core.exceptions import ChatNotFoundError, CollectionMismatchError, ValidationAppError
 from app.models.schemas import ChatData, ChatDetailData, ChatMessage, ChatSummary
@@ -7,6 +8,8 @@ from app.services.rag_service import RAGService
 from app.services.chat_repository import ChatRepository
 from app.services.memory_service import MemoryService, estimate_tokens
 from app.utils.time import utc_now_iso
+from app.db.session import get_engine
+from sqlalchemy import text
 
 
 def _dt_to_iso_z(value: datetime) -> str:
@@ -33,6 +36,8 @@ class ChatService:
                 chat_id=s.chat_id,
                 title=s.title,
                 collection_name=s.collection_name,
+                filename=getattr(s, "filename", None),
+                stored_filename=getattr(s, "stored_filename", None),
                 created_at=_dt_to_iso_z(s.created_at),
                 last_updated=_dt_to_iso_z(s.last_updated) if s.last_updated else None,
             )
@@ -41,25 +46,77 @@ class ChatService:
 
     def get_chat(self, chat_id: str) -> ChatDetailData:
         session = self.repo.get_chat(chat_id)
+
+        # Backfill PDF metadata for older chats if missing.
+        inferred = self._infer_pdf_metadata_from_collection(session.collection_name)
+        if getattr(session, "stored_filename", None) is None and inferred.get("stored_filename"):
+            self.repo.update_chat_pdf_metadata(
+                chat_id,
+                filename=inferred.get("filename"),
+                stored_filename=inferred.get("stored_filename"),
+            )
+            # Refresh local object so response contains the inferred values.
+            session = self.repo.get_chat(chat_id)
+
         messages_desc = self.repo.list_messages_desc(chat_id, limit=10_000)
         messages_desc.sort(key=lambda m: m.id)
         return ChatDetailData(
             chat_id=chat_id,
             title=session.title,
             collection_name=session.collection_name,
+            filename=getattr(session, "filename", None),
+            stored_filename=getattr(session, "stored_filename", None),
             messages=[ChatMessage(role=m.role, content=m.content) for m in messages_desc],
             created_at=_dt_to_iso_z(session.created_at),
             last_updated=_dt_to_iso_z(session.last_updated) if session.last_updated else None,
         )
 
-    def send_message(self, question: str, collection_name: str, chat_id: str | None = None) -> ChatData:
+    def _infer_pdf_metadata_from_collection(self, collection_name: str) -> dict[str, str | None]:
+        """Best-effort inference of stored PDF filename for a collection.
+
+        Uses the pgvector tables populated by LangChain (langchain_pg_collection / langchain_pg_embedding)
+        and extracts the basename of cmetadata->>'source'.
+        """
+
+        engine = get_engine()
+        sql = text(
+            """
+            SELECT e.cmetadata->>'source' AS source
+            FROM langchain_pg_embedding e
+            JOIN langchain_pg_collection c ON e.collection_id = c.uuid
+            WHERE c.name = :collection_name
+            LIMIT 1
+            """
+        )
+        try:
+            with engine.begin() as conn:
+                row = conn.execute(sql, {"collection_name": collection_name}).mappings().first()
+        except Exception:
+            return {"filename": None, "stored_filename": None}
+
+        source = (row or {}).get("source") if row else None
+        if not source:
+            return {"filename": None, "stored_filename": None}
+
+        stored = Path(str(source)).name
+        # We often don't have the original user filename; use stored filename as a fallback display name.
+        return {"filename": stored, "stored_filename": stored}
+
+    def send_message(
+        self,
+        question: str,
+        collection_name: str,
+        chat_id: str | None = None,
+        filename: str | None = None,
+        stored_filename: str | None = None,
+    ) -> ChatData:
         question = question.strip()
         collection_name = collection_name.strip()
         if not question or not collection_name:
             raise ValidationAppError("question and collection_name are required")
 
         if not chat_id:
-            new_session = self._create_chat(question, collection_name)
+            new_session = self._create_chat(question, collection_name, filename=filename, stored_filename=stored_filename)
             chat_id = new_session.chat_id
         else:
             existing = self.repo.get_chat(chat_id)
@@ -92,14 +149,21 @@ class ChatService:
             title=session.title,
         )
 
-    def send_message_stream(self, question: str, collection_name: str, chat_id: str | None = None):
+    def send_message_stream(
+        self,
+        question: str,
+        collection_name: str,
+        chat_id: str | None = None,
+        filename: str | None = None,
+        stored_filename: str | None = None,
+    ):
         question = (question or "").strip()
         collection_name = (collection_name or "").strip()
         if not question or not collection_name:
             raise ValidationAppError("question and collection_name are required")
 
         if not chat_id:
-            new_session = self._create_chat(question, collection_name)
+            new_session = self._create_chat(question, collection_name, filename=filename, stored_filename=stored_filename)
             chat_id = new_session.chat_id
         else:
             existing = self.repo.get_chat(chat_id)
@@ -152,9 +216,20 @@ class ChatService:
             },
         )
 
-    def _create_chat(self, question: str, collection_name: str):
+    def _create_chat(
+        self,
+        question: str,
+        collection_name: str,
+        filename: str | None = None,
+        stored_filename: str | None = None,
+    ):
         title = question[:60] + "..." if len(question) > 60 else question
-        return self.repo.create_chat(title=title, collection_name=collection_name)
+        return self.repo.create_chat(
+            title=title,
+            collection_name=collection_name,
+            filename=filename,
+            stored_filename=stored_filename,
+        )
 
 
 chat_service = ChatService()
