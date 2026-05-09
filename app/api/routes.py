@@ -127,6 +127,8 @@ async def get_chat(chat_id: str, service: ChatService = Depends(get_chat_service
         chat_id=chat.chat_id,
         title=chat.title,
         collection_name=chat.collection_name,
+        filename=getattr(chat, "filename", None),
+        stored_filename=getattr(chat, "stored_filename", None),
         messages=chat.messages,
         created_at=chat.created_at,
         last_updated=chat.last_updated,
@@ -140,6 +142,8 @@ async def send_message(request: ChatRequest, service: ChatService = Depends(get_
         request.question,
         request.collection_name,
         request.chat_id,
+        request.filename,
+        request.stored_filename,
     )
     return success_response(
         "Answer generated successfully",
@@ -157,6 +161,8 @@ async def send_message_stream(request: ChatRequest, service: ChatService = Depen
         request.question,
         request.collection_name,
         request.chat_id,
+        request.filename,
+        request.stored_filename,
     )
     return StreamingResponse(
         iterate_in_threadpool(iterator),

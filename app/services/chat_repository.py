@@ -32,13 +32,21 @@ class ChatRepository:
                 raise ChatNotFoundError("Chat not found")
             return session
 
-    def create_chat(self, title: str, collection_name: str) -> ChatSession:
+    def create_chat(
+        self,
+        title: str,
+        collection_name: str,
+        filename: str | None = None,
+        stored_filename: str | None = None,
+    ) -> ChatSession:
         chat_id = str(uuid.uuid4())
         now = _utc_now()
         session = ChatSession(
             chat_id=chat_id,
             title=title,
             collection_name=collection_name,
+            filename=filename,
+            stored_filename=stored_filename,
             created_at=now,
             last_updated=now,
             summary=None,
@@ -57,6 +65,25 @@ class ChatRepository:
                 .where(ChatSession.chat_id == chat_id)
                 .values(last_updated=_utc_now())
             )
+            db.execute(stmt)
+            db.commit()
+
+    def update_chat_pdf_metadata(
+        self,
+        chat_id: str,
+        filename: str | None = None,
+        stored_filename: str | None = None,
+    ) -> None:
+        values: dict = {}
+        if filename is not None:
+            values["filename"] = filename
+        if stored_filename is not None:
+            values["stored_filename"] = stored_filename
+        if not values:
+            return
+
+        with create_db_session() as db:
+            stmt = update(ChatSession).where(ChatSession.chat_id == chat_id).values(**values)
             db.execute(stmt)
             db.commit()
 

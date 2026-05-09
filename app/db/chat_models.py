@@ -15,6 +15,9 @@ class ChatSession(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     collection_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    stored_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

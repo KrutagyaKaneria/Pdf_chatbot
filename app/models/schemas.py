@@ -51,6 +51,8 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1)
     collection_name: str = Field(min_length=1)
     chat_id: str | None = None
+    filename: str | None = None
+    stored_filename: str | None = None
 
 
 class ChatMessage(BaseModel):
@@ -76,6 +78,8 @@ class ChatSummary(BaseModel):
     chat_id: str
     title: str
     collection_name: str
+    filename: str | None = None
+    stored_filename: str | None = None
     created_at: str
     last_updated: str | None = None
 
