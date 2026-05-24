@@ -4,8 +4,7 @@ import { FileUp, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../lib/utils";
 import { useUiStore } from "../../store/useUiStore";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+import { uploadPdf } from "../../lib/api";
 
 const SidebarUploadZone = () => {
   const { setActiveCollection, setActiveChatId, setMessages, setError } = useChatStore();
@@ -35,48 +34,35 @@ const SidebarUploadZone = () => {
     setProgress(0);
     setError(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const request = new XMLHttpRequest();
-    request.open("POST", `${API_BASE_URL}/upload-pdf`);
-
-    request.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        setProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    };
-
-    request.onload = () => {
-      setUploading(false);
-      if (request.status < 200 || request.status >= 300) {
-        try {
-            const parsed = JSON.parse(request.responseText);
+    uploadPdf(file, (nextProgress) => setProgress(nextProgress))
+      .then(async (request) => {
+        setUploading(false);
+        const responseText = await request.text();
+        if (request.status < 200 || request.status >= 300) {
+          try {
+            const parsed = JSON.parse(responseText);
             setError(parsed.detail || "Upload failed");
-        } catch {
+          } catch {
             setError("Upload failed");
+          }
+          return;
         }
-        return;
-      }
 
-      const data = JSON.parse(request.responseText);
-      setActiveCollection({
-        collectionName: data.collection_name,
-        filename: data.filename || file.name,
-        storedFilename: data.stored_filename || data.filename || file.name,
+        const data = JSON.parse(responseText);
+        setActiveCollection({
+          collectionName: data.collection_name,
+          filename: data.filename || file.name,
+          storedFilename: data.stored_filename || data.filename || file.name,
+        });
+        setActiveChatId(null);
+        setMessages([]);
+        setProgress(100);
+        window.dispatchEvent(new CustomEvent('refresh-chats'));
+      })
+      .catch(() => {
+        setUploading(false);
+        setError("Upload failed. Confirm the backend is running and reachable.");
       });
-      setActiveChatId(null);
-      setMessages([]);
-      setProgress(100);
-      window.dispatchEvent(new CustomEvent('refresh-chats'));
-    };
-
-    request.onerror = () => {
-      setUploading(false);
-      setError("Upload failed. Confirm the backend is running and reachable.");
-    };
-
-    request.send(formData);
   };
 
   const onDrop = useCallback((e: React.DragEvent) => {

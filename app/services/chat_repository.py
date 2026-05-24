@@ -20,15 +20,19 @@ class ChatRepository:
     def __init__(self) -> None:
         self.cache = CacheService()
 
-    def list_chats(self) -> list[ChatSession]:
+    def list_chats(self, owner_id: str | None = None) -> list[ChatSession]:
         with create_db_session() as db:
             stmt: Select[tuple[ChatSession]] = select(ChatSession).order_by(ChatSession.last_updated.desc())
+            if owner_id:
+                stmt = stmt.where(ChatSession.owner_id == owner_id)
             return list(db.scalars(stmt).all())
 
-    def get_chat(self, chat_id: str) -> ChatSession:
+    def get_chat(self, chat_id: str, owner_id: str | None = None) -> ChatSession:
         with create_db_session() as db:
             session = db.get(ChatSession, chat_id)
             if not session:
+                raise ChatNotFoundError("Chat not found")
+            if owner_id is not None and getattr(session, "owner_id", None) != owner_id:
                 raise ChatNotFoundError("Chat not found")
             return session
 
@@ -36,6 +40,7 @@ class ChatRepository:
         self,
         title: str,
         collection_name: str,
+        owner_id: str,
         filename: str | None = None,
         stored_filename: str | None = None,
     ) -> ChatSession:
@@ -43,6 +48,7 @@ class ChatRepository:
         now = _utc_now()
         session = ChatSession(
             chat_id=chat_id,
+            owner_id=owner_id,
             title=title,
             collection_name=collection_name,
             filename=filename,

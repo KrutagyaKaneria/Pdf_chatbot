@@ -15,7 +15,7 @@ load_dotenv(ENV_FILE)
 class Settings(BaseModel):
     app_name: str = "Dynamic PDF RAG API"
     environment: str = "development"
-    cors_origins: list[str] = Field(default_factory=lambda: ["*"])
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"])
 
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
@@ -97,6 +97,20 @@ class Settings(BaseModel):
     db_pool_timeout: int = 30
 
     log_level: str = "INFO"
+    # Authentication settings
+    auth_provider: str = "local"  # local | clerk | auth0
+    jwt_secret: str | None = None
+    jwt_algorithm: str = "HS256"
+    jwks_url: str | None = None
+    jwt_private_key: str | None = None
+    jwt_public_key: str | None = None
+    access_token_exp_minutes: int = 15
+    refresh_token_exp_days: int = 30
+    auth_refresh_cookie_name: str = "refresh_token"
+    auth_cookie_secure: bool = False
+    auth_cookie_samesite: str = "lax"
+    clerk_api_key: str | None = None
+    clerk_frontend_api: str | None = None
 
     @field_validator("upload_dir", mode="before")
     @classmethod
@@ -124,7 +138,7 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     import os
 
-    cors_origins = os.getenv("CORS_ORIGINS", "*")
+    cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
     settings = Settings(
         app_name=os.getenv("APP_NAME", "Dynamic PDF RAG API"),
         environment=os.getenv("ENVIRONMENT", "development"),
@@ -199,6 +213,17 @@ def get_settings() -> Settings:
         db_max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
         db_pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "30")),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
+        auth_provider=os.getenv("AUTH_PROVIDER", "local"),
+        jwt_secret=os.getenv("JWT_SECRET"),
+        jwt_algorithm=os.getenv("JWT_ALGORITHM", "HS256"),
+        jwks_url=os.getenv("JWKS_URL"),
+        jwt_private_key=os.getenv("JWT_PRIVATE_KEY"),
+        jwt_public_key=os.getenv("JWT_PUBLIC_KEY"),
+        access_token_exp_minutes=int(os.getenv("ACCESS_TOKEN_EXP_MINUTES", "15")),
+        refresh_token_exp_days=int(os.getenv("REFRESH_TOKEN_EXP_DAYS", "30")),
+        auth_refresh_cookie_name=os.getenv("AUTH_REFRESH_COOKIE_NAME", "refresh_token"),
+        auth_cookie_secure=os.getenv("AUTH_COOKIE_SECURE", "false").lower() == "true",
+        auth_cookie_samesite=os.getenv("AUTH_COOKIE_SAMESITE", "lax"),
     )
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     return settings

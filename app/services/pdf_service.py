@@ -1,4 +1,5 @@
 import uuid
+import hashlib
 from pathlib import Path
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -8,6 +9,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.core.config import Settings, get_settings
 from app.core.exceptions import InvalidPDFError, VectorStoreError
 from app.core.logging import get_logger
+from app.db.pgvector import ensure_pgvector_ready
+from app.services.document_repository import DocumentRepository
 from app.services.embedding_service import get_embeddings
 
 
@@ -17,12 +20,26 @@ logger = get_logger(__name__)
 class PDFProcessingService:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
+        self.document_repo = DocumentRepository()
 
-    def process_uploaded_pdf(self, file_path: str | Path) -> str:
+    def process_uploaded_pdf(
+        self,
+        file_path: str | Path,
+        owner_id: str | None = None,
+        filename: str | None = None,
+        stored_filename: str | None = None,
+    ) -> str:
         path = Path(file_path)
-        collection_name = f"pdf_session_{uuid.uuid4().hex[:12]}"
+        owner = (owner_id or "system").strip() or "system"
+        owner_hash = hashlib.sha1(owner.encode("utf-8")).hexdigest()[:12]
+        collection_name = f"usr_{owner_hash}_pdf_{uuid.uuid4().hex[:12]}"
 
         logger.info("Processing PDF upload", extra={"upload_filename": path.name})
+        ensure_pgvector_ready()
+        logger.info(
+            "PGVector bootstrap ready for upload",
+            extra={"upload_filename": path.name, "collection_name": collection_name},
+        )
         loader = PyPDFLoader(str(path))
         docs = loader.load()
         if not docs:
@@ -55,6 +72,8 @@ class PDFProcessingService:
             src = Path(str(ch.metadata.get("source", path.name))).name
             page = ch.metadata.get("page", "")
             ch.metadata.setdefault("chunk_id", f"{src}:{page}:{idx}")
+            ch.metadata.setdefault("owner_id", owner)
+            ch.metadata.setdefault("collection_name", collection_name)
         if not chunks:
             raise InvalidPDFError("No extractable text found in the uploaded PDF")
 
@@ -68,6 +87,10 @@ class PDFProcessingService:
         )
 
         try:
+            logger.info(
+                "Creating PGVector collection and inserting embeddings",
+                extra={"upload_filename": path.name, "collection_name": collection_name, "chunk_count": len(chunks)},
+            )
             PGVector.from_documents(
                 documents=chunks,
                 embedding=get_embeddings(),
@@ -75,11 +98,21 @@ class PDFProcessingService:
                 connection_string=self.settings.database_url,
                 use_jsonb=True,
                 pre_delete_collection=True,
+                create_extension=False,
             )
         except Exception as exc:
             raise self._vector_error_from_exception(exc) from exc
 
-        logger.info("PDF stored in PGVector", extra={"collection_name": collection_name})
+        logger.info(
+            "PDF stored in PGVector",
+            extra={"collection_name": collection_name, "chunk_count": len(chunks)},
+        )
+        self.document_repo.upsert_document(
+            owner_id=owner,
+            collection_name=collection_name,
+            filename=filename or path.name,
+            stored_filename=stored_filename or path.name,
+        )
         return collection_name
 
     def _vector_error_from_exception(self, exc: Exception) -> VectorStoreError:

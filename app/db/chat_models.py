@@ -12,6 +12,8 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
     chat_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Owner of this chat session (user id / tenant id)
+    owner_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     collection_name: Mapped[str] = mapped_column(String(255), nullable=False)
 

@@ -1,4 +1,5 @@
 import os
+import hashlib
 from functools import lru_cache
 from typing import Any
 
@@ -16,10 +17,13 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 def get_embeddings():
     settings: Settings = get_settings()
     model_kwargs = {"local_files_only": True} if settings.embeddings_local_only else {}
-    base = HuggingFaceEmbeddings(
-        model_name=settings.embedding_model,
-        model_kwargs=model_kwargs,
-    )
+    try:
+        base = HuggingFaceEmbeddings(
+            model_name=settings.embedding_model,
+            model_kwargs=model_kwargs,
+        )
+    except Exception as exc:
+        return CachedEmbeddings(FallbackEmbeddings(settings=settings, reason=str(exc)), settings=settings)
     return CachedEmbeddings(base, settings=settings)
 
 
@@ -71,3 +75,37 @@ class CachedEmbeddings:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._base, name)
+
+
+class FallbackEmbeddings:
+    """Deterministic local fallback when sentence-transformers / torch are unavailable.
+
+    This keeps uploads and retrieval functional in lightweight environments.
+    """
+
+    def __init__(self, settings: Settings | None = None, reason: str | None = None) -> None:
+        self._settings = settings or get_settings()
+        self._reason = reason or "unknown"
+        self._dimension = 384
+        self.model_name = f"fallback-{self._settings.embedding_model}"
+
+    def _encode(self, text: str) -> list[float]:
+        tokens = (text or "").lower().split()
+        vector = [0.0] * self._dimension
+        if not tokens:
+            return vector
+
+        for token in tokens:
+            digest = hashlib.sha256(token.encode("utf-8")).digest()
+            for idx in range(0, len(digest), 2):
+                bucket = int.from_bytes(digest[idx:idx + 2], "big") % self._dimension
+                vector[bucket] += 1.0
+
+        norm = sum(value * value for value in vector) ** 0.5 or 1.0
+        return [value / norm for value in vector]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._encode(text)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self._encode(text) for text in texts]

@@ -3,8 +3,7 @@ import { useChatStore } from "../../store/useChatStore";
 import { Paperclip, ArrowUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+import { apiJson } from "../../lib/api";
 
 const MessageInput = () => {
   const [inputValue, setInputValue] = useState("");
@@ -31,7 +30,7 @@ const MessageInput = () => {
     setMessages((prev) => [...prev, { message, isUser: true }]);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/chat`, {
+      const data = await apiJson<{ chat_id: string; answer: string; docs?: any[]; title: string }>(`/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -42,9 +41,6 @@ const MessageInput = () => {
           stored_filename: activeCollection.storedFilename,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Chat request failed");
 
       setActiveChatId(data.chat_id);
       typeMessage(data.answer, data.docs?.slice(0, 4) || []);
