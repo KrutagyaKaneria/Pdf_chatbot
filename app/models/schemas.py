@@ -74,6 +74,43 @@ class ChatResponse(ApiResponse[ChatData]):
     title: str
 
 
+class UserPublic(BaseModel):
+    user_id: str
+    email: str | None = None
+    name: str | None = None
+
+
+class SignupRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=8)
+    name: str | None = None
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = None
+
+
+class AuthTokenData(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class AuthSessionData(BaseModel):
+    user: UserPublic
+    tokens: AuthTokenData
+
+
+class AuthResponse(ApiResponse[AuthSessionData]):
+    user: UserPublic
+    tokens: AuthTokenData
+
+
 class ChatSummary(BaseModel):
     chat_id: str
     title: str

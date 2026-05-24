@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { apiJson, getStoredAuth } from "../lib/api";
 
 export interface Source {
   source: string;
@@ -45,6 +46,12 @@ interface ChatState {
   startNewChat: (clearDocument?: boolean) => void;
   typeMessage: (fullText: string, sources: Source[]) => void;
   openChat: (chatId: string) => Promise<void>;
+  resetForAuthChange: () => void;
+}
+
+function collectionStorageKey(): string {
+  const userId = getStoredAuth().user?.user_id || "anonymous";
+  return `pdf_chatbot_collection:${userId}`;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -52,12 +59,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   chats: [],
   activeChatId: null,
   activeCollection: (() => {
-    const stored = window.localStorage.getItem("pdf_chatbot_collection");
+    const stored = window.localStorage.getItem(collectionStorageKey());
     if (!stored) return null;
     try {
       return JSON.parse(stored);
     } catch {
-      window.localStorage.removeItem("pdf_chatbot_collection");
+      window.localStorage.removeItem(collectionStorageKey());
       return null;
     }
   })(),
@@ -71,10 +78,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setActiveChatId: (activeChatId) => set({ activeChatId }),
   setActiveCollection: (collection) => {
     set({ activeCollection: collection });
+    const storageKey = collectionStorageKey();
     if (collection) {
-      window.localStorage.setItem("pdf_chatbot_collection", JSON.stringify(collection));
+      window.localStorage.setItem(storageKey, JSON.stringify(collection));
     } else {
-      window.localStorage.removeItem("pdf_chatbot_collection");
+      window.localStorage.removeItem(storageKey);
     }
   },
   setLoading: (loading) => set({ loading }),
@@ -116,12 +124,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   openChat: async (chatId: string) => {
-    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
     set({ error: null });
     try {
-      const res = await fetch(`${API_BASE_URL}/chats/${chatId}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Unable to open chat");
+      const data = await apiJson<{ data?: any; chat_id?: string; collection_name?: string; filename?: string; stored_filename?: string; messages?: Array<{ role: string; content: string }> }>(`/chats/${chatId}`);
 
       const payload = (data && typeof data === "object" && (data as any).data) ? (data as any).data : data;
       const collectionName = (payload as any)?.collection_name ?? (data as any)?.collection_name;
@@ -145,9 +150,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isUser: msg.role === "user",
         }))
       });
-      window.localStorage.setItem("pdf_chatbot_collection", JSON.stringify(openedCollection));
+      window.localStorage.setItem(collectionStorageKey(), JSON.stringify(openedCollection));
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Unable to open chat" });
     }
-  }
+  },
+
+  resetForAuthChange: () => {
+    set({
+      messages: [],
+      chats: [],
+      activeChatId: null,
+      activeCollection: null,
+      loading: false,
+      error: null,
+    });
+  },
 }));

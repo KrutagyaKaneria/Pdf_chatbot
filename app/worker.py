@@ -52,7 +52,12 @@ def main() -> int:
 
             try:
                 service = PDFProcessingService(settings)
-                collection_name = service.process_uploaded_pdf(Path(file_path))
+                collection_name = service.process_uploaded_pdf(
+                    Path(file_path),
+                    status.get("owner_id"),
+                    status.get("filename"),
+                    status.get("stored_filename"),
+                )
                 queue.update_status(job_id, state="succeeded", collection_name=collection_name, error="")
             except Exception as exc:
                 err = str(exc)

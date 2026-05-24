@@ -6,6 +6,7 @@ from app.core.exceptions import ChatNotFoundError, CollectionMismatchError, Vali
 from app.models.schemas import ChatData, ChatDetailData, ChatMessage, ChatSummary
 from app.services.rag_service import RAGService
 from app.services.chat_repository import ChatRepository
+from app.services.document_repository import DocumentRepository
 from app.services.memory_service import MemoryService, estimate_tokens
 from app.utils.time import utc_now_iso
 from app.db.session import get_engine
@@ -23,14 +24,16 @@ class ChatService:
         self,
         rag_service: RAGService | None = None,
         repo: ChatRepository | None = None,
+        document_repo: DocumentRepository | None = None,
         memory_service: MemoryService | None = None,
     ) -> None:
         self.rag_service = rag_service or RAGService()
         self.repo = repo or ChatRepository()
+        self.document_repo = document_repo or DocumentRepository()
         self.memory_service = memory_service or MemoryService(repo=self.repo)
 
-    def list_chats(self) -> list[ChatSummary]:
-        sessions = self.repo.list_chats()
+    def list_chats(self, owner_id: str | None = None) -> list[ChatSummary]:
+        sessions = self.repo.list_chats(owner_id=owner_id)
         return [
             ChatSummary(
                 chat_id=s.chat_id,
@@ -44,8 +47,8 @@ class ChatService:
             for s in sessions
         ]
 
-    def get_chat(self, chat_id: str) -> ChatDetailData:
-        session = self.repo.get_chat(chat_id)
+    def get_chat(self, chat_id: str, owner_id: str | None = None) -> ChatDetailData:
+        session = self.repo.get_chat(chat_id, owner_id=owner_id)
 
         # Backfill PDF metadata for older chats if missing.
         inferred = self._infer_pdf_metadata_from_collection(session.collection_name)
@@ -56,7 +59,7 @@ class ChatService:
                 stored_filename=inferred.get("stored_filename"),
             )
             # Refresh local object so response contains the inferred values.
-            session = self.repo.get_chat(chat_id)
+            session = self.repo.get_chat(chat_id, owner_id=owner_id)
 
         messages_desc = self.repo.list_messages_desc(chat_id, limit=10_000)
         messages_desc.sort(key=lambda m: m.id)
@@ -109,17 +112,22 @@ class ChatService:
         chat_id: str | None = None,
         filename: str | None = None,
         stored_filename: str | None = None,
+        owner_id: str | None = None,
     ) -> ChatData:
         question = question.strip()
         collection_name = collection_name.strip()
         if not question or not collection_name:
             raise ValidationAppError("question and collection_name are required")
+        if not owner_id:
+            raise ValidationAppError("authenticated user is required")
+
+        self.document_repo.ensure_collection_owner(owner_id, collection_name)
 
         if not chat_id:
-            new_session = self._create_chat(question, collection_name, filename=filename, stored_filename=stored_filename)
+            new_session = self._create_chat(question, collection_name, filename=filename, stored_filename=stored_filename, owner_id=owner_id)
             chat_id = new_session.chat_id
         else:
-            existing = self.repo.get_chat(chat_id)
+            existing = self.repo.get_chat(chat_id, owner_id=owner_id)
             if existing.collection_name != collection_name:
                 raise CollectionMismatchError("chat_id belongs to a different collection_name")
 
@@ -140,7 +148,7 @@ class ChatService:
         )
         self.memory_service.maybe_summarize(chat_id)
 
-        session = self.repo.get_chat(chat_id)
+        session = self.repo.get_chat(chat_id, owner_id=owner_id)
 
         return ChatData(
             chat_id=chat_id,
@@ -156,17 +164,22 @@ class ChatService:
         chat_id: str | None = None,
         filename: str | None = None,
         stored_filename: str | None = None,
+        owner_id: str | None = None,
     ):
         question = (question or "").strip()
         collection_name = (collection_name or "").strip()
         if not question or not collection_name:
             raise ValidationAppError("question and collection_name are required")
+        if not owner_id:
+            raise ValidationAppError("authenticated user is required")
+
+        self.document_repo.ensure_collection_owner(owner_id, collection_name)
 
         if not chat_id:
-            new_session = self._create_chat(question, collection_name, filename=filename, stored_filename=stored_filename)
+            new_session = self._create_chat(question, collection_name, filename=filename, stored_filename=stored_filename, owner_id=owner_id)
             chat_id = new_session.chat_id
         else:
-            existing = self.repo.get_chat(chat_id)
+            existing = self.repo.get_chat(chat_id, owner_id=owner_id)
             if existing.collection_name != collection_name:
                 raise CollectionMismatchError("chat_id belongs to a different collection_name")
 
@@ -204,7 +217,7 @@ class ChatService:
             token_estimate=estimate_tokens(answer),
         )
         self.memory_service.maybe_summarize(chat_id)
-        session = self.repo.get_chat(chat_id)
+        session = self.repo.get_chat(chat_id, owner_id=owner_id)
 
         yield sse(
             "done",
@@ -222,11 +235,13 @@ class ChatService:
         collection_name: str,
         filename: str | None = None,
         stored_filename: str | None = None,
+        owner_id: str | None = None,
     ):
         title = question[:60] + "..." if len(question) > 60 else question
         return self.repo.create_chat(
             title=title,
             collection_name=collection_name,
+            owner_id=owner_id or "system",
             filename=filename,
             stored_filename=stored_filename,
         )

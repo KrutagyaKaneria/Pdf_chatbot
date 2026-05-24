@@ -2,13 +2,15 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChatStore } from "../../store/useChatStore";
 import { useUiStore } from "../../store/useUiStore";
-import { UploadCloud, FileText, MessageSquare, Plus, Settings, ChevronLeft, ChevronRight, File } from "lucide-react";
+import { FileText, MessageSquare, Settings, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { cn } from "../../lib/utils";
 import SidebarUploadZone from "./SidebarUploadZone";
+import { useAuth } from "../../auth/AuthProvider";
 
 const Sidebar = () => {
-  const { chats, activeChatId, activeCollection, startNewChat } = useChatStore();
+  const { chats, activeChatId, activeCollection } = useChatStore();
   const { isSidebarOpen, toggleSidebar } = useUiStore();
+  const { user, logout } = useAuth();
 
   return (
     <motion.aside
@@ -96,6 +98,21 @@ const Sidebar = () => {
       </div>
 
       <div className={cn("pt-4 border-t border-white/5 flex flex-col gap-3 mt-auto", isSidebarOpen ? "px-6" : "px-3 items-center")}>
+        {isSidebarOpen && user && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="text-xs uppercase tracking-widest text-outline mb-1">Account</div>
+            <div className="text-sm font-semibold text-white truncate">{user.name || user.email || user.user_id}</div>
+            <div className="text-xs text-on-surface-variant truncate">{user.email || user.user_id}</div>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className={cn("flex items-center text-slate-500 hover:text-slate-300 cursor-pointer transition-colors group w-full", isSidebarOpen ? "gap-3 px-4 py-2" : "p-2 justify-center")}
+        >
+          <LogOut size={18} />
+          {isSidebarOpen && <span className="text-sm font-medium font-body">Logout</span>}
+        </button>
         <div className={cn("flex items-center text-slate-500 hover:text-slate-300 cursor-pointer transition-colors group", isSidebarOpen ? "gap-3 px-4 py-2" : "p-2")}>
           <Settings size={18} className="group-hover:rotate-45 transition-transform duration-300" />
           {isSidebarOpen && <span className="text-sm font-medium font-body">Settings</span>}

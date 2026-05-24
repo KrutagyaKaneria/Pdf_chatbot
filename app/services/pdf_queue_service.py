@@ -22,6 +22,7 @@ class PdfJobStatus:
     state: str
     filename: str
     stored_filename: str
+    owner_id: str
     file_path: str
     collection_name: str | None = None
     error: str | None = None
@@ -46,7 +47,7 @@ class PDFQueueService:
     def _status_key(self, job_id: str) -> str:
         return CacheKey("pdfjob", (job_id,)).render()
 
-    def enqueue(self, file_path: Path, filename: str, stored_filename: str) -> str:
+    def enqueue(self, file_path: Path, filename: str, stored_filename: str, owner_id: str) -> str:
         if not self.enabled():
             raise RuntimeError("PDF background queue is disabled")
 
@@ -58,6 +59,7 @@ class PDFQueueService:
             "state": "queued",
             "filename": filename,
             "stored_filename": stored_filename,
+            "owner_id": owner_id,
             "file_path": str(file_path),
             "collection_name": "",
             "error": "",
