@@ -3,14 +3,9 @@
 @tailwind utilities;
 
 @layer base {
-    html, body, #root {
-        height: 100%;
-    }
-
     body {
         @apply bg-background text-on-surface font-body;
         background-image: radial-gradient(circle at 50% -20%, #1e1f25 0%, #111318 100%);
-        overflow: hidden;
     }
 }
 
@@ -51,4 +46,81 @@
         filter: blur(2px);
         box-shadow: 0 0 10px #acc7ff;
     }
+
+    .glass-panel {
+        background: rgba(30, 31, 37, 0.4);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .hero-gradient {
+        background: radial-gradient(circle at 50% 50%, rgba(172, 199, 255, 0.08) 0%, transparent 60%);
+    }
+    .animate-float {
+        animation: float 6s ease-in-out infinite;
+    }
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-20px); }
+    }
+    .reveal {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.active {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .node-pulse {
+        animation: pulse-glow 3s infinite alternate;
+    }
+    @keyframes pulse-glow {
+        from { filter: drop-shadow(0 0 2px #acc7ff); opacity: 0.5; }
+        to { filter: drop-shadow(0 0 12px #508ff8); opacity: 1; }
+    }
+    .shimmer {
+        background: linear-gradient(90deg, transparent, rgba(172, 199, 255, 0.1), transparent);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+
+    .tilt-container { perspective: 1000px; }
+    .tilt-card { transform-style: preserve-3d; transition: transform 0.1s ease; }
+    .tilt-card:hover { box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+    
+    .data-packet { fill: #acc7ff; filter: drop-shadow(0 0 8px #508ff8); }
+    .pipeline-path { stroke: rgba(172, 199, 255, 0.15); stroke-dasharray: 5 5; transition: stroke 0.3s ease, stroke-width 0.3s ease; }
+    .group:hover .pipeline-path { stroke: rgba(172, 199, 255, 0.4); }
+
+    .heatmap-cell { transition: background-color 1.5s ease, transform 0.3s ease; }
+    .heatmap-cell:hover { transform: scale(1.2); z-index: 10; }
+    
+    .token-cursor {
+        display: inline-block; width: 8px; height: 1.2em; background-color: #acc7ff;
+        animation: blink 0.8s infinite; vertical-align: middle; margin-left: 2px;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    .node-card {
+        background: rgba(22, 24, 29, 0.8);
+        border: 1px solid rgba(172, 199, 255, 0.1);
+        backdrop-filter: blur(8px);
+        transition: all 0.3s ease;
+    }
+    .node-card.active-glow {
+        border-color: rgba(172, 199, 255, 0.5);
+        box-shadow: 0 0 20px rgba(80, 143, 248, 0.3);
+        transform: scale(1.05);
+    }
+    .pipeline-line { stroke: rgba(172, 199, 255, 0.1); stroke-width: 2; stroke-dasharray: 4 4; fill: none; }
+    .packet-dot { fill: #acc7ff; filter: drop-shadow(0 0 4px #508ff8); }
+    @keyframes packet-flow { 0% { offset-distance: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+    .animate-packet { animation: packet-flow 3s linear infinite; }
+    
+    @keyframes flow { 0% { offset-distance: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+    .packet-animate { animation: flow 4s linear infinite; }
 }
