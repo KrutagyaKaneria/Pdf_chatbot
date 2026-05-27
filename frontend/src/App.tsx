@@ -1,7 +1,7 @@
 import React from 'react'
 import {Navigate, Route, Routes} from 'react-router-dom'
 import WorkspacePage from './pages/WorkspacePage'
-import HomePage from './pages/HomePage'
+import LandingPage from './pages/LandingPage'
 import {ProtectedRoute} from './auth/ProtectedRoute'
 import {LoginPage} from './auth/LoginPage'
 import {SignupPage} from './auth/SignupPage'
@@ -11,7 +11,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<LandingPage />} />
       <Route
         path="/*"
         element={

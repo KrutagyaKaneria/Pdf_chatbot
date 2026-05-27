@@ -117,7 +117,7 @@ const SidebarUploadZone = () => {
                                     className="h-full bg-primary"
                                     initial={{ width: "0%" }}
                                     animate={{ width: `${progress}%` }}
-                                    transition={{ ease: "easeOut" }}
+                                    transition={{}}
                                 />
                             </div>
                         )}

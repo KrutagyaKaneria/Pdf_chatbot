@@ -20,7 +20,7 @@ const containerVariants = {
 
 const cardVariants = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 const WorkflowSection = () => {
@@ -30,7 +30,7 @@ const WorkflowSection = () => {
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.7 }}
         className="mb-16"
       >
         <h2 className="text-4xl font-headline text-on-surface mb-4">The Intelligent Lifecycle</h2>

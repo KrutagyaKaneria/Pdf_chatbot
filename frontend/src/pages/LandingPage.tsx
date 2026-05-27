@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { useAuth } from '../auth/AuthProvider'
+import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/landing/Navbar';
 import HeroSection from '../components/landing/HeroSection';
 import WorkflowSection from '../components/landing/WorkflowSection';
@@ -9,6 +11,16 @@ import DemoSection from '../components/landing/DemoSection';
 import Footer from '../components/landing/Footer';
 
 const LandingPage = () => {
+  const { user, ready } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (ready && user) {
+      // if authenticated, redirect to the app workspace
+      navigate('/app')
+    }
+  }, [ready, user, navigate])
+
   useEffect(() => {
     // Scroll Reveal Logic
     const observerOptions = {

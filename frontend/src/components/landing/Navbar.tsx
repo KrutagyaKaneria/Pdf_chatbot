@@ -17,7 +17,7 @@ const Navbar = () => {
       <motion.nav
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.6 }}
         className={`fixed top-0 w-full z-50 transition-all duration-500 ${
           scrolled
             ? 'bg-surface/80 backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.05)]'

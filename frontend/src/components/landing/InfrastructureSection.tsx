@@ -36,7 +36,7 @@ const InfrastructureSection = () => {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.7 }}
           className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8"
         >
           <div className="max-w-xl">
@@ -63,7 +63,7 @@ const InfrastructureSection = () => {
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: card.offset ? 16 : 0 }}
               viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.6, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.6, delay: i * 0.1 }}
               whileHover={{
                 backgroundColor: 'rgba(40,42,47,0.9)',
                 y: card.offset ? 8 : -8,
