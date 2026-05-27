@@ -29,7 +29,7 @@ const SemanticMemorySection = () => {
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.7 }}
         className="text-center mb-16"
       >
         <h2 className="text-5xl font-headline text-on-surface">Semantic Memory Graph</h2>
@@ -53,7 +53,7 @@ const SemanticMemorySection = () => {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: card.delay, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.6, delay: card.delay }}
                 whileHover={{ y: -8, transition: { duration: 0.3 } }}
                 className="p-8 glass-panel rounded-2xl animate-float"
                 style={{ animationDelay: `${card.delay}s` }}

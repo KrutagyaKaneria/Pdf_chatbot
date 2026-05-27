@@ -38,6 +38,8 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
   useEffect(() => {
     const restore = async () => {
       const stored = getStoredAuth()
+      const restoreToken = stored.accessToken
+
       if (stored.accessToken && stored.user) {
         setToken(stored.accessToken)
         setUser(stored.user as User)
@@ -48,6 +50,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           const me = await apiJson<{ data?: User; user?: User }>("/auth/me")
           const currentUser = me.data ?? me.user ?? stored.user
           if (currentUser) {
+            if (getStoredAuth().accessToken !== restoreToken) return
             setToken(getStoredAuth().accessToken)
             setUser(currentUser as User)
           }
@@ -57,6 +60,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
             setToken(refreshed.accessToken)
             setUser(refreshed.user as User)
           } else {
+            if (getStoredAuth().accessToken !== restoreToken) return
             clearAuthSession()
             setToken(null)
             setUser(null)
@@ -68,6 +72,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           setToken(refreshed.accessToken)
           setUser(refreshed.user as User)
         } else {
+          if (getStoredAuth().accessToken !== restoreToken) return
           clearAuthSession()
           setToken(null)
           setUser(null)
@@ -84,7 +89,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     resetForAuthChange()
     setToken(session.accessToken)
     setUser(session.user as User)
-    navigate('/')
+    navigate('/app')
   }
 
   const signup = async (name: string, email: string, password: string) => {
@@ -92,7 +97,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     resetForAuthChange()
     setToken(session.accessToken)
     setUser(session.user as User)
-    navigate('/')
+    navigate('/app')
   }
 
   const logout = async () => {

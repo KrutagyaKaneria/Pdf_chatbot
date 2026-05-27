@@ -97,7 +97,7 @@ const HeroSection = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.6, delay: 0.1 }}
           className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-outline-variant/20 bg-surface-container-low/50 backdrop-blur-md"
         >
           <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -110,7 +110,7 @@ const HeroSection = () => {
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.8, delay: 0.2 }}
           className="text-6xl md:text-8xl font-headline leading-[0.9] text-on-surface tracking-tight"
         >
           Next-Generation AI <br />
@@ -121,7 +121,7 @@ const HeroSection = () => {
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.7, delay: 0.35 }}
           className="text-lg md:text-xl text-on-surface-variant max-w-2xl mx-auto leading-relaxed font-body"
         >
           Production-grade RAG. Hybrid Retrieval. Advanced Document Understanding.{' '}
@@ -132,7 +132,7 @@ const HeroSection = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.7, delay: 0.5 }}
           className="flex flex-col md:flex-row gap-4 justify-center pt-8"
         >
           <Link to="/signup">

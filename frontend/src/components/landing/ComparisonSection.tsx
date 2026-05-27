@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7 } },
 };
 
 const ComparisonSection = () => {
@@ -58,7 +58,7 @@ const ComparisonSection = () => {
           initial={{ opacity: 0, x: 40 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.8 }}
           className="relative glass-panel rounded-3xl p-8 aspect-square flex items-center justify-center overflow-hidden"
         >
           <div className="absolute inset-0 bg-surface-container-highest/20" />
@@ -70,21 +70,21 @@ const ComparisonSection = () => {
                   initial={{ scaleY: 0 }}
                   whileInView={{ scaleY: 1 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: 0.1, origin: 'bottom' }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
                   className="w-4 bg-error/20 h-1/4 rounded-t origin-bottom"
                 />
                 <motion.div
                   initial={{ scaleY: 0 }}
                   whileInView={{ scaleY: 1 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: 0.2, origin: 'bottom' }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
                   className="w-4 bg-error/20 h-2/4 rounded-t origin-bottom"
                 />
                 <motion.div
                   initial={{ scaleY: 0 }}
                   whileInView={{ scaleY: 1 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: 0.3, origin: 'bottom' }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
                   className="w-4 bg-error/40 h-1/3 rounded-t origin-bottom"
                 />
               </div>
