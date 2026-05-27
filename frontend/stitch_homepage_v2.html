@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atelier AI | Next-Generation Document Intelligence</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "secondary": "#b2c7f5",
+                "on-tertiary-fixed-variant": "#6a3b00",
+                "on-tertiary-fixed": "#2d1600",
+                "surface-container-high": "#282a2f",
+                "surface-bright": "#37393f",
+                "primary-fixed": "#d7e2ff",
+                "on-secondary-fixed": "#011a3f",
+                "surface-tint": "#acc7ff",
+                "surface-container": "#1e1f25",
+                "on-error-container": "#ffdad6",
+                "on-secondary-container": "#a4b8e6",
+                "tertiary-fixed-dim": "#ffb873",
+                "on-surface": "#e2e2e9",
+                "error-container": "#93000a",
+                "on-secondary": "#1a3055",
+                "on-background": "#e2e2e9",
+                "surface-container-lowest": "#0c0e13",
+                "inverse-surface": "#e2e2e9",
+                "on-primary": "#002f68",
+                "on-error": "#690005",
+                "outline": "#8c909e",
+                "inverse-on-surface": "#2e3036",
+                "tertiary-fixed": "#ffdcbf",
+                "primary-container": "#508ff8",
+                "primary-fixed-dim": "#acc7ff",
+                "surface-variant": "#33353a",
+                "outline-variant": "#424753",
+                "background": "#111318",
+                "on-secondary-fixed-variant": "#32476d",
+                "on-primary-fixed-variant": "#004492",
+                "on-primary-container": "#00285b",
+                "secondary-fixed": "#d7e2ff",
+                "inverse-primary": "#005bbf",
+                "surface-container-highest": "#33353a",
+                "error": "#ffb4ab",
+                "surface-dim": "#111318",
+                "surface-container-low": "#1a1b21",
+                "tertiary": "#ffb873",
+                "on-tertiary": "#4b2800",
+                "on-primary-fixed": "#001a40",
+                "secondary-fixed-dim": "#b2c7f5",
+                "on-tertiary-container": "#412200",
+                "primary": "#acc7ff",
+                "surface": "#111318",
+                "on-surface-variant": "#c2c6d5",
+                "tertiary-container": "#d37b02",
+                "secondary-container": "#344970"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "fontFamily": {
+                "headline": ["Instrument Serif", "serif"],
+                "display": ["Instrument Serif", "serif"],
+                "body": ["Plus Jakarta Sans", "sans-serif"],
+                "label": ["Plus Jakarta Sans", "sans-serif"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            background-color: #111318;
+            color: #e2e2e9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+        }
+        .font-headline { font-family: 'Instrument Serif', serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(30, 31, 37, 0.4);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, rgba(172, 199, 255, 0.08) 0%, transparent 60%);
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .node-pulse {
+            animation: pulse-glow 3s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            from { filter: drop-shadow(0 0 2px #acc7ff); opacity: 0.5; }
+            to { filter: drop-shadow(0 0 12px #508ff8); opacity: 1; }
+        }
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(172, 199, 255, 0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+<!-- Top Navigation Shell -->
+<nav class="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl flex justify-between items-center px-8 py-4 max-w-7xl mx-auto left-1/2 -translate-x-1/2">
+<div class="font-display text-2xl font-bold tracking-tight bg-gradient-to-br from-primary to-primary-container bg-clip-text text-transparent">
+            Atelier AI
+        </div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-primary font-bold border-b-2 border-primary pb-1 transition-colors duration-300" href="#">Platform</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300" href="#">Retrieval</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300" href="#">Solutions</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300" href="#">Pricing</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="hidden md:block px-6 py-2 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-bold scale-95 active:opacity-80 transition-all">
+                Get Started
+            </button>
+<button class="md:hidden text-on-surface">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+</div>
+</nav>
+<main>
+<!-- Section 1: Fullscreen Hero -->
+<section class="relative min-h-screen flex items-center justify-center overflow-hidden px-6 hero-gradient">
+<!-- Animated Background Elements -->
+<div class="absolute inset-0 z-0 opacity-40">
+<canvas class="w-full h-full" id="hero-canvas"></canvas>
+</div>
+<div class="relative z-10 text-center max-w-4xl mx-auto space-y-8 reveal active">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-outline-variant/20 bg-surface-container-low/50 backdrop-blur-md">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-label-sm uppercase tracking-widest text-on-surface-variant font-medium">Production RAG Engine</span>
+</div>
+<h1 class="text-6xl md:text-8xl font-headline leading-[0.9] text-on-surface tracking-tight">
+                    Next-Generation AI <br/>Document Intelligence
+                </h1>
+<p class="text-lg md:text-xl text-on-surface-variant max-w-2xl mx-auto leading-relaxed font-body">
+                    Production-grade RAG. Hybrid Retrieval. Advanced Document Understanding. 
+                    Transform static data into active intelligence with the world's most sophisticated retrieval platform.
+                </p>
+<div class="flex flex-col md:flex-row gap-4 justify-center pt-8">
+<button class="px-8 py-4 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-bold text-lg hover:shadow-[0_0_20px_rgba(172,199,255,0.3)] transition-all">
+                        Get Started
+                    </button>
+<button class="px-8 py-4 rounded-full border border-outline-variant/30 text-on-surface font-semibold hover:bg-surface-container transition-all flex items-center justify-center gap-2">
+                        View Architecture
+                        <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+<div class="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce opacity-40">
+<span class="material-symbols-outlined text-3xl" data-icon="keyboard_double_arrow_down">keyboard_double_arrow_down</span>
+</div>
+</section>
+<!-- Section 2: Interactive RAG Workflow -->
+<section class="py-24 px-6 max-w-7xl mx-auto reveal">
+<div class="mb-16">
+<h2 class="text-4xl font-headline text-on-surface mb-4">The Intelligent Lifecycle</h2>
+<p class="text-on-surface-variant max-w-xl">Every document is precision-engineered for retrieval, from ingestion to generation.</p>
+</div>
+<div class="relative grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+<!-- SVG Connector Paths (Hidden on Mobile) -->
+<svg class="absolute top-1/2 left-0 w-full h-1 z-0 hidden lg:block opacity-20" preserveaspectratio="none">
+<line stroke="url(#lineGrad)" stroke-dasharray="8 4" stroke-width="2" x1="0" x2="100%" y1="0" y2="0"></line>
+<defs>
+<lineargradient id="lineGrad" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#acc7ff"></stop>
+<stop offset="100%" stop-color="#508ff8"></stop>
+</lineargradient>
+</defs>
+</svg>
+<!-- Process Steps -->
+<div class="glass-panel p-6 rounded-2xl relative z-10 group hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="upload_file">upload_file</span>
+<h3 class="text-sm font-bold mb-1">PDF Upload</h3>
+<p class="text-xs text-on-surface-variant">Multi-modal parsing engine.</p>
+</div>
+<div class="glass-panel p-6 rounded-2xl relative z-10 group hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="data_object">data_object</span>
+<h3 class="text-sm font-bold mb-1">Parsing</h3>
+<p class="text-xs text-on-surface-variant">Layout aware extraction.</p>
+</div>
+<div class="glass-panel p-6 rounded-2xl relative z-10 group hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="splitscreen">splitscreen</span>
+<h3 class="text-sm font-bold mb-1">Chunking</h3>
+<p class="text-xs text-on-surface-variant">Semantic context grouping.</p>
+</div>
+<div class="glass-panel p-6 rounded-2xl relative z-10 group hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="dynamic_form">dynamic_form</span>
+<h3 class="text-sm font-bold mb-1">Embeddings</h3>
+<p class="text-xs text-on-surface-variant">High-dimensional vectors.</p>
+</div>
+<div class="glass-panel p-6 rounded-2xl relative z-10 group hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="database">database</span>
+<h3 class="text-sm font-bold mb-1">Vector DB</h3>
+<p class="text-xs text-on-surface-variant">Cloud-native persistence.</p>
+</div>
+<div class="glass-panel p-6 rounded-2xl relative z-10 group hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="search_insights">search_insights</span>
+<h3 class="text-sm font-bold mb-1">Hybrid</h3>
+<p class="text-xs text-on-surface-variant">Semantic + Keyword.</p>
+</div>
+<div class="glass-panel p-6 rounded-2xl relative z-10 group hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="filter_list">filter_list</span>
+<h3 class="text-sm font-bold mb-1">Reranking</h3>
+<p class="text-xs text-on-surface-variant">Contextual relevance score.</p>
+</div>
+<div class="glass-panel p-6 rounded-2xl relative z-10 group hover:bg-surface-container transition-colors border-primary/20">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="auto_awesome">auto_awesome</span>
+<h3 class="text-sm font-bold mb-1">AI Gen</h3>
+<p class="text-xs text-on-surface-variant">Source-cited responses.</p>
+</div>
+</div>
+</section>
+<!-- Section 3: Why Our RAG Is Better -->
+<section class="py-24 bg-surface-container-low px-6 reveal">
+<div class="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+<div class="space-y-8">
+<h2 class="text-5xl font-headline text-on-surface">Beyond Naive Retrieval</h2>
+<p class="text-lg text-on-surface-variant leading-relaxed">
+                        Basic chatbots lose context in long documents. DocChat uses **Hybrid Reranking** and **Recursive Summarization** to ensure every answer is grounded in the ground truth.
+                    </p>
+<ul class="space-y-6">
+<li class="flex gap-4">
+<div class="flex-none w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="check_circle">check_circle</span>
+</div>
+<div>
+<h4 class="font-bold">Zero Hallucination Guarantee</h4>
+<p class="text-on-surface-variant text-sm">Every response is hard-linked to specific PDF coordinates and text chunks.</p>
+</div>
+</li>
+<li class="flex gap-4">
+<div class="flex-none w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="bolt">bolt</span>
+</div>
+<div>
+<h4 class="font-bold">Sub-Second Latency</h4>
+<p class="text-on-surface-variant text-sm">Engineered for enterprise scale with distributed vector search and caching.</p>
+</div>
+</li>
+</ul>
+</div>
+<div class="relative glass-panel rounded-3xl p-8 aspect-square flex items-center justify-center overflow-hidden">
+<!-- Comparison Visualization -->
+<div class="absolute inset-0 bg-surface-container-highest/20"></div>
+<div class="z-10 grid grid-cols-2 gap-8 w-full">
+<div class="space-y-4 text-center">
+<div class="h-48 bg-surface-container rounded-xl flex items-end justify-center p-4 gap-2">
+<div class="w-4 bg-error/20 h-1/4 rounded-t"></div>
+<div class="w-4 bg-error/20 h-2/4 rounded-t"></div>
+<div class="w-4 bg-error/40 h-1/3 rounded-t"></div>
+</div>
+<p class="text-label-sm uppercase font-bold text-error">Naive RAG</p>
+<p class="text-xs text-on-surface-variant italic">High hallucination risk</p>
+</div>
+<div class="space-y-4 text-center">
+<div class="h-48 bg-surface-container-highest rounded-xl flex items-end justify-center p-4 gap-2 relative">
+<div class="absolute inset-0 shimmer opacity-20 rounded-xl"></div>
+<div class="w-4 bg-primary/60 h-2/3 rounded-t"></div>
+<div class="w-4 bg-primary/80 h-4/5 rounded-t"></div>
+<div class="w-4 bg-primary h-full rounded-t"></div>
+</div>
+<p class="text-label-sm uppercase font-bold text-primary">DocChat Engine</p>
+<p class="text-xs text-on-surface-variant italic">Precise fact extraction</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 4: Semantic Chunking & Memory -->
+<section class="py-24 px-6 max-w-7xl mx-auto reveal">
+<div class="text-center mb-16">
+<h2 class="text-5xl font-headline text-on-surface">Semantic Memory Graph</h2>
+<p class="text-on-surface-variant mt-4 max-w-2xl mx-auto">We don't just split text. We understand concepts. Our semantic chunking engine breaks documents into logic blocks that preserve the author's intent.</p>
+</div>
+<div class="relative h-[500px] glass-panel rounded-3xl overflow-hidden group">
+<img class="w-full h-full object-cover opacity-30 grayscale group-hover:scale-105 transition-transform duration-700" data-alt="A futuristic three-dimensional digital visualization of a complex neural network with glowing blue data nodes and interconnected filaments. The background is a deep obsidian void with atmospheric dust particles illuminated by the soft light of the network. The visual style is premium, clean, and highly technical, emphasizing depth and intelligent data connections in a dark-mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCS6UKz9Rm606SipeBY1WFcCxRGesJOjpmF6FcGo-VTvM0NVtFU6sVDznw9N_33gYN8Oj173oOQKjvUUtquIkdHY7g6dYwSVEp-6c7dd7sTtXhRdvglkf3k_ZaTg3VTkDAtkok60x68E7kUCLbmybkccMZNjhsYZEfEzhj-qLmkF4w4OQyof9ptmPFxYIScnGHwxZme2JLvSDCZVcN6qSl3SOvTfn3RiII2xs-XfRHG71o8f59exiQxeTzHMfdQf-jV3uvMFqvrrdI"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="grid grid-cols-3 gap-12 max-w-4xl">
+<div class="p-8 glass-panel rounded-2xl animate-float" style="animation-delay: 0s;">
+<span class="material-symbols-outlined text-4xl text-primary mb-4" data-icon="neurology">neurology</span>
+<h4 class="font-bold text-xl mb-2">Concept Mapping</h4>
+<p class="text-sm text-on-surface-variant">Linking related ideas across thousands of document pages automatically.</p>
+</div>
+<div class="p-8 glass-panel rounded-2xl animate-float" style="animation-delay: 0.5s;">
+<span class="material-symbols-outlined text-4xl text-primary mb-4" data-icon="memory">memory</span>
+<h4 class="font-bold text-xl mb-2">Long-term Memory</h4>
+<p class="text-sm text-on-surface-variant">A persistent knowledge graph that grows with every document you upload.</p>
+</div>
+<div class="p-8 glass-panel rounded-2xl animate-float" style="animation-delay: 1s;">
+<span class="material-symbols-outlined text-4xl text-primary mb-4" data-icon="share_reviews">share_reviews</span>
+<h4 class="font-bold text-xl mb-2">Contextual Flow</h4>
+<p class="text-sm text-on-surface-variant">Smooth conversation transitions with awareness of past document queries.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 5: Tech Stack & Infrastructure -->
+<section class="py-24 bg-surface-container-lowest px-6 reveal">
+<div class="max-w-7xl mx-auto">
+<div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+<div class="max-w-xl">
+<h2 class="text-4xl font-headline text-on-surface mb-4">Enterprise Grade Infrastructure</h2>
+<p class="text-on-surface-variant">Built on the most robust technologies in the AI ecosystem for unmatched reliability and speed.</p>
+</div>
+<button class="px-6 py-3 rounded-full border border-outline-variant/30 text-primary font-bold hover:bg-primary/10 transition-all">
+                        Technical Docs
+                    </button>
+</div>
+<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="glass-panel p-8 rounded-3xl hover:bg-surface-container-high transition-all">
+<img class="w-full h-32 object-cover rounded-xl mb-6 opacity-60" data-alt="A high-tech server rack close-up with glowing blue and white LEDs indicating high-speed data processing. The lighting is cinematic with deep shadows and soft glows, emphasizing enterprise-grade security and computational power. Deep obsidian tones and electric blue highlights dominate the frame." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJ_ysZHxLmfYJAIs0rA7W7aA7ulgUj2ZSvdSSFroYiGCXldZ4iM_7de1JEq5poPHSWKMcaybcrEixLaZAn_GY8rcvhtH_--Tal4PtAxYAiq4vU_0iprnZa4En4Vz3UCSmYwXvhsw-ltfRfooyUk02xmzIP4JMp9dFmxAYNcCSgff65rsBfDV6J-u3BUUs7SxCdQrbjDtwAY_3W9lSCdHRs8YDjgPP64Bicxe5EkI5xEzNA-uThLwcdhuRiNPK_Av5iyoUvsOt0oVM"/>
+<h3 class="text-xl font-bold mb-2">PGVector</h3>
+<p class="text-sm text-on-surface-variant">SQL-native vector storage for seamless relational and semantic queries.</p>
+</div>
+<div class="glass-panel p-8 rounded-3xl hover:bg-surface-container-high transition-all translate-y-4">
+<img class="w-full h-32 object-cover rounded-xl mb-6 opacity-60" data-alt="A stylized glowing microchip floating in a dark atmospheric digital space. Sharp geometric lines and intricate circuits glow in a soft electric blue. The aesthetic is extremely polished and minimal, representing cutting-edge hardware acceleration for large language models." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvaWPZRSng5iZU4UfqBxCEVuelI96a5eGlIvLzpMThEUPjMXrTVdP-suN7rXNAVChbeG35-CDxiIyQor1LBIR8LQ65DXebv6074eqt6ebaXEkruuk6c0FeUkorM72QAvOSHg5ZiwqchBAAFUtntoJ2xailzzSARN25lFrPKPEEHegzO9A7o1TqxhtTjppQIA1MXc_1D4Xohmk_3G2VlX1fT9ZMw4bumkrAGymlw1DGpQrRI9KSa049vaAn7c3VJu2ZMZ89MFajDFI"/>
+<h3 class="text-xl font-bold mb-2">Groq LLM</h3>
+<p class="text-sm text-on-surface-variant">Unrivaled inference speed powered by LPU architecture for instant responses.</p>
+</div>
+<div class="glass-panel p-8 rounded-3xl hover:bg-surface-container-high transition-all">
+<img class="w-full h-32 object-cover rounded-xl mb-6 opacity-60" data-alt="Abstract visualization of a high-speed data stream or fiber optic network. Vibrant blue and teal light streaks move through a dark digital tunnel. The mood is energetic and represents high-performance cloud networking and data infrastructure." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCO3D2zXU8AAfiP0eTnMsJMkMhpbePT2GcJCg6HjKzUv3IM0NTBtDvSL2yvyOLeywoUbgqkFs55fnCWg-2sEWtK4pHjx0beHAAJQANk4yeAXvdJp4mBYpFJDCSbWOaSJqyHYBhJ3QcHoYCJksup-O7zY4E0qc9XDcAR9wW7skHArXme5GvVRx_WkWCBgWa5I2KzMFQd4zoesF9eup3eaEfEZkLTeOd6haNuTvpCIszltmw98OjV0pYuldJlQTP5pGFa7GXL0lDOnmw"/>
+<h3 class="text-xl font-bold mb-2">Redis Stack</h3>
+<p class="text-sm text-on-surface-variant">Global low-latency caching for session management and prompt templates.</p>
+</div>
+<div class="glass-panel p-8 rounded-3xl hover:bg-surface-container-high transition-all translate-y-4">
+<img class="w-full h-32 object-cover rounded-xl mb-6 opacity-60" data-alt="A sophisticated digital padlock composed of thousands of glowing blue data particles, suspended in a dark, secure-looking digital environment. The visual reflects high-security encryption and data privacy in an advanced technological setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlNkh19yeJ1Oufc5UwlVh1ubxzK2-LU3u-KsM7TbfPbd06BIcTl_MnNimth8DjPBsaZ8RzCD8J63kv_Y31nsUK26bpS1NB9gtSgKARjIjZmRDFup5Fjy6lHOoKVGjHQmpThqkpIN0YpJzcAkckNoblrBxrLmLjrAx8LWzT3FGHhpr7Z_WTpq_fE8JmSYPutzw8r3hof11UFp6nc_DjMgrlqEc8eSaDBlLY-kmlXntfoLA0tu8iDY6cPL5CKN-CxO21qGA7g0AEip4"/>
+<h3 class="text-xl font-bold mb-2">LangChain</h3>
+<p class="text-sm text-on-surface-variant">Advanced orchestration of agents and complex multi-step reasoning chains.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 6: Real-time AI Demo -->
+<section class="py-24 px-6 max-w-5xl mx-auto reveal">
+<div class="glass-panel rounded-3xl p-1 border border-primary/10 overflow-hidden shadow-2xl">
+<!-- Chat Window Header -->
+<div class="flex items-center justify-between px-6 py-4 bg-surface-container-highest/50 border-b border-outline-variant/10">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-error/40"></div>
+<div class="w-3 h-3 rounded-full bg-tertiary/40"></div>
+<div class="w-3 h-3 rounded-full bg-primary/40"></div>
+<span class="ml-4 text-sm font-medium text-on-surface-variant">Chat: Q3_Financial_Review.pdf</span>
+</div>
+<span class="text-xs text-on-surface-variant/60">Connected to 128-core Inference Node</span>
+</div>
+<!-- Chat Content Area -->
+<div class="p-8 h-[500px] overflow-y-auto space-y-8 bg-surface-container-lowest/80 backdrop-blur-3xl custom-scrollbar">
+<!-- User Message -->
+<div class="flex justify-end">
+<div class="bg-primary/10 p-4 rounded-2xl rounded-tr-none max-w-md border border-primary/5">
+<p class="text-sm">What were the key drivers for revenue growth in the EMEA region last quarter?</p>
+</div>
+</div>
+<!-- AI Message -->
+<div class="flex gap-4">
+<div class="flex-none w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined text-xl" data-icon="smart_toy">smart_toy</span>
+</div>
+<div class="space-y-4 max-w-2xl">
+<div class="bg-surface-container-high p-6 rounded-2xl rounded-tl-none border border-outline-variant/5">
+<p class="text-sm leading-relaxed" id="demo-text">
+                                    Based on the <span class="text-primary font-bold">Q3 Financial Report (p. 42)</span>, the revenue growth in EMEA was driven by three primary factors:
+                                </p>
+<ul class="mt-4 space-y-2 text-sm text-on-surface-variant">
+<li class="flex gap-2"><span class="text-primary">01.</span> Expansion of the cloud services portfolio in Germany.</li>
+<li class="flex gap-2"><span class="text-primary">02.</span> Strategic acquisition of 'Digital Solutions Ltd' in August.</li>
+<li class="flex gap-2"><span class="text-primary">03.</span> 15% increase in annual recurring revenue (ARR) from existing enterprise clients.</li>
+</ul>
+</div>
+<!-- Citations -->
+<div class="flex gap-2">
+<div class="px-3 py-1 bg-surface-container rounded-lg border border-outline-variant/20 flex items-center gap-2 text-xs hover:border-primary transition-all cursor-pointer">
+<span class="material-symbols-outlined text-[14px]" data-icon="description">description</span>
+                                    Page 42, Para 3
+                                </div>
+<div class="px-3 py-1 bg-surface-container rounded-lg border border-outline-variant/20 flex items-center gap-2 text-xs hover:border-primary transition-all cursor-pointer">
+<span class="material-symbols-outlined text-[14px]" data-icon="table_chart">table_chart</span>
+                                    Exhibit A: Revenue Breakdown
+                                </div>
+</div>
+</div>
+</div>
+<!-- Intelligence Pulse -->
+<div class="flex gap-4 items-center opacity-60">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<div class="w-2 h-2 rounded-full bg-primary node-pulse"></div>
+</div>
+<div class="h-2 w-32 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary/40 shimmer"></div>
+</div>
+</div>
+</div>
+<!-- Input Area -->
+<div class="p-6 bg-surface-container-high/40 border-t border-outline-variant/10">
+<div class="relative">
+<input class="w-full bg-surface-container-highest/50 border-0 border-b-2 border-transparent focus:border-primary focus:ring-0 rounded-2xl px-6 py-4 text-sm transition-all placeholder:text-on-surface-variant/40" placeholder="Ask a question about your documents..." type="text"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer Shell -->
+<footer class="bg-surface-container-lowest w-full py-12 flex flex-col md:flex-row justify-between items-center px-12 border-t border-outline-variant/10 mt-24">
+<div class="mb-8 md:mb-0">
+<div class="font-display text-xl text-on-surface mb-2">Atelier AI</div>
+<p class="font-body text-label-sm uppercase tracking-widest text-on-surface-variant">© 2024 Digital Atelier. All rights reserved.</p>
+</div>
+<div class="flex gap-8">
+<a class="font-body text-label-sm uppercase tracking-widest text-on-surface-variant hover:text-primary transition-all" href="#">Documentation</a>
+<a class="font-body text-label-sm uppercase tracking-widest text-on-surface-variant hover:text-primary transition-all" href="#">API Reference</a>
+<a class="font-body text-label-sm uppercase tracking-widest text-on-surface-variant hover:text-primary transition-all" href="#">Status</a>
+<a class="font-body text-label-sm uppercase tracking-widest text-on-surface-variant hover:text-primary transition-all" href="#">Privacy Policy</a>
+</div>
+</footer>
+<script>
+        // Hero Background Animation
+        const canvas = document.getElementById('hero-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 1.5 + 0.5;
+                this.speedX = Math.random() * 0.5 - 0.25;
+                this.speedY = Math.random() * 0.5 - 0.25;
+                this.opacity = Math.random() * 0.5;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.x < 0) this.x = canvas.width;
+                if (this.y > canvas.height) this.y = 0;
+                if (this.y < 0) this.y = canvas.height;
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(172, 199, 255, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < 150; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // Draw faint lines between close particles
+            for(let i=0; i<particles.length; i++) {
+                for(let j=i+1; j<particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if(dist < 100) {
+                        ctx.strokeStyle = `rgba(172, 199, 255, ${0.1 * (1 - dist/100)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+
+        // Scroll Reveal Logic
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Simulated Streaming Text micro-interaction
+        const demoText = document.getElementById('demo-text');
+        if(demoText) {
+            const originalContent = demoText.innerHTML;
+            demoText.innerHTML = '';
+            let i = 0;
+            const typeWriter = () => {
+                if(i < originalContent.length) {
+                    // Primitive tag handling to avoid breaking HTML spans
+                    if(originalContent[i] === '<') {
+                        const tagEnd = originalContent.indexOf('>', i);
+                        demoText.innerHTML += originalContent.substring(i, tagEnd + 1);
+                        i = tagEnd + 1;
+                    } else {
+                        demoText.innerHTML += originalContent.charAt(i);
+                        i++;
+                    }
+                    setTimeout(typeWriter, 15);
+                }
+            }
+            
+            // Trigger when visible
+            const demoObserver = new IntersectionObserver((entries) => {
+                if(entries[0].isIntersecting) {
+                    typeWriter();
+                    demoObserver.disconnect();
+                }
+            }, {threshold: 0.5});
+            demoObserver.observe(demoText);
+        }
+    </script>
+</body></html>

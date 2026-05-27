@@ -1,19 +1,36 @@
 import React from 'react';
+import { motion } from 'framer-motion';
+
+const footerLinks = ['Documentation', 'API Reference', 'Status', 'Privacy Policy'];
 
 const Footer = () => {
   return (
-    <footer className="bg-surface-container-lowest w-full py-12 flex flex-col md:flex-row justify-between items-center px-12 border-t border-outline-variant/10 mt-24">
+    <motion.footer
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.7 }}
+      className="bg-surface-container-lowest w-full py-12 flex flex-col md:flex-row justify-between items-center px-12 border-t border-outline-variant/10 mt-24"
+    >
       <div className="mb-8 md:mb-0 text-center md:text-left">
-        <div className="font-headline text-xl text-on-surface mb-2">Atelier AI</div>
-        <p className="font-body text-label-sm uppercase tracking-widest text-on-surface-variant">© 2024 Digital Atelier. All rights reserved.</p>
+        <div className="font-display text-xl text-on-surface mb-2">Atelier AI</div>
+        <p className="font-body text-xs uppercase tracking-widest text-on-surface-variant">
+          © 2024 Digital Atelier. All rights reserved.
+        </p>
       </div>
       <div className="flex flex-wrap justify-center gap-8">
-        <a className="font-body text-label-sm uppercase tracking-widest text-on-surface-variant hover:text-primary transition-all" href="#">Documentation</a>
-        <a className="font-body text-label-sm uppercase tracking-widest text-on-surface-variant hover:text-primary transition-all" href="#">API Reference</a>
-        <a className="font-body text-label-sm uppercase tracking-widest text-on-surface-variant hover:text-primary transition-all" href="#">Status</a>
-        <a className="font-body text-label-sm uppercase tracking-widest text-on-surface-variant hover:text-primary transition-all" href="#">Privacy Policy</a>
+        {footerLinks.map(link => (
+          <motion.a
+            key={link}
+            href="#"
+            whileHover={{ color: '#acc7ff' }}
+            className="font-body text-xs uppercase tracking-widest text-on-surface-variant transition-colors"
+          >
+            {link}
+          </motion.a>
+        ))}
       </div>
-    </footer>
+    </motion.footer>
   );
 };
 
