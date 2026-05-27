@@ -1,5 +1,5 @@
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useChatStore } from "../../store/useChatStore";
 import { useUiStore } from "../../store/useUiStore";
 import { FileText, MessageSquare, Settings, ChevronLeft, ChevronRight, LogOut } from "lucide-react";

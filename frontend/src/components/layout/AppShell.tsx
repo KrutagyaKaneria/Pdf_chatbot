@@ -1,7 +1,5 @@
 import React from "react";
 import Sidebar from "../sidebar/Sidebar";
-import { useUiStore } from "../../store/useUiStore";
-import { cn } from "../../lib/utils";
 
 interface AppShellProps {
   children: React.ReactNode;
