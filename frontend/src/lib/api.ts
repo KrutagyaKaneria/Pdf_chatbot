@@ -1,4 +1,8 @@
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'
+// Use a relative base by default so development requests can be proxied
+// by the CRA dev server (see package.json `proxy`), avoiding cross-origin
+// cookie issues during local development. Set `REACT_APP_API_BASE_URL` in
+// production or non-proxied environments.
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ?? ''
 
 type StoredUser = {
   user_id: string
