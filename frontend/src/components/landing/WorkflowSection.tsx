@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+ 
 
 const steps = [
   { icon: 'upload_file', title: 'PDF Upload', desc: 'Multi-modal parsing engine.' },

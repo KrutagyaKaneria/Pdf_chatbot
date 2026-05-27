@@ -24,7 +24,7 @@ const SidebarUploadZone = () => {
     setIsDragging(false);
   }, []);
 
-  const uploadFile = (file: File) => {
+  const uploadFile = useCallback((file: File) => {
     if (file.type !== "application/pdf") {
       setError("Please upload a PDF file.");
       return;
@@ -63,7 +63,7 @@ const SidebarUploadZone = () => {
         setUploading(false);
         setError("Upload failed. Confirm the backend is running and reachable.");
       });
-  };
+  }, [setActiveChatId, setActiveCollection, setError, setMessages]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -72,7 +72,7 @@ const SidebarUploadZone = () => {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       uploadFile(e.dataTransfer.files[0]);
     }
-  }, []);
+  }, [uploadFile]);
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {

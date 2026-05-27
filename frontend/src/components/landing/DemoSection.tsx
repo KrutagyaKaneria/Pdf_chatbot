@@ -43,7 +43,7 @@ const DemoSection = () => {
       observer.disconnect();
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [fullContent]);
 
   return (
     <section className="py-24 px-6 max-w-5xl mx-auto" ref={sectionRef}>
