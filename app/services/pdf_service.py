@@ -1,6 +1,10 @@
 import uuid
 import hashlib
+import shutil
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
+from urllib.request import urlopen
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import PGVector
@@ -17,6 +21,28 @@ from app.services.embedding_service import get_embeddings
 logger = get_logger(__name__)
 
 
+@contextmanager
+def _pdf_source_path(source: str | Path):
+    path = Path(source)
+    if path.exists():
+        yield path
+        return
+
+    source_text = str(source).strip()
+    if not source_text.startswith(("http://", "https://")):
+        raise InvalidPDFError("Uploaded PDF source is not reachable")
+
+    temp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    temp_path = Path(temp_file.name)
+    temp_file.close()
+    try:
+        with urlopen(source_text, timeout=60) as response, temp_path.open("wb") as handle:
+            shutil.copyfileobj(response, handle)
+        yield temp_path
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
 class PDFProcessingService:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
@@ -28,80 +54,84 @@ class PDFProcessingService:
         owner_id: str | None = None,
         filename: str | None = None,
         stored_filename: str | None = None,
+        source_url: str | None = None,
     ) -> str:
-        path = Path(file_path)
         owner = (owner_id or "system").strip() or "system"
         owner_hash = hashlib.sha1(owner.encode("utf-8")).hexdigest()[:12]
         collection_name = f"usr_{owner_hash}_pdf_{uuid.uuid4().hex[:12]}"
 
-        logger.info("Processing PDF upload", extra={"upload_filename": path.name})
-        ensure_pgvector_ready()
-        logger.info(
-            "PGVector bootstrap ready for upload",
-            extra={"upload_filename": path.name, "collection_name": collection_name},
-        )
-        loader = PyPDFLoader(str(path))
-        docs = loader.load()
-        if not docs:
-            raise InvalidPDFError("No readable pages found in the uploaded PDF")
+        source_label = filename or Path(str(file_path)).name
+        source_reference = source_url or str(file_path)
 
-        chunks = []
-        if (self.settings.chunking_strategy or "").strip().lower() == "semantic":
-            try:
-                from langchain_experimental.text_splitter import SemanticChunker
-
-                semantic_splitter = SemanticChunker(get_embeddings())
-                chunks = semantic_splitter.split_documents(docs)
-            except Exception as exc:
-                logger.info(
-                    "Semantic chunking unavailable; falling back to recursive",
-                    extra={"reason": str(exc)},
-                )
-
-        if not chunks:
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=self.settings.chunk_size,
-                chunk_overlap=self.settings.chunk_overlap,
-                separators=["\n\n", "\n", ". ", " ", ""],
-            )
-            chunks = text_splitter.split_documents(docs)
-
-        for idx, ch in enumerate(chunks):
-            ch.metadata = ch.metadata or {}
-            ch.metadata.setdefault("chunk_index", idx)
-            src = Path(str(ch.metadata.get("source", path.name))).name
-            page = ch.metadata.get("page", "")
-            ch.metadata.setdefault("chunk_id", f"{src}:{page}:{idx}")
-            ch.metadata.setdefault("owner_id", owner)
-            ch.metadata.setdefault("collection_name", collection_name)
-        if not chunks:
-            raise InvalidPDFError("No extractable text found in the uploaded PDF")
-
-        logger.info(
-            "PDF chunking complete",
-            extra={
-                "upload_filename": path.name,
-                "chunk_count": len(chunks),
-                "collection_name": collection_name,
-            },
-        )
-
-        try:
+        with _pdf_source_path(source_reference) as path:
+            logger.info("Processing PDF upload", extra={"upload_filename": path.name})
+            ensure_pgvector_ready()
             logger.info(
-                "Creating PGVector collection and inserting embeddings",
-                extra={"upload_filename": path.name, "collection_name": collection_name, "chunk_count": len(chunks)},
+                "PGVector bootstrap ready for upload",
+                extra={"upload_filename": path.name, "collection_name": collection_name},
             )
-            PGVector.from_documents(
-                documents=chunks,
-                embedding=get_embeddings(),
-                collection_name=collection_name,
-                connection_string=self.settings.database_url,
-                use_jsonb=True,
-                pre_delete_collection=True,
-                create_extension=False,
+            loader = PyPDFLoader(str(path))
+            docs = loader.load()
+            if not docs:
+                raise InvalidPDFError("No readable pages found in the uploaded PDF")
+
+            chunks = []
+            if (self.settings.chunking_strategy or "").strip().lower() == "semantic":
+                try:
+                    from langchain_experimental.text_splitter import SemanticChunker
+
+                    semantic_splitter = SemanticChunker(get_embeddings())
+                    chunks = semantic_splitter.split_documents(docs)
+                except Exception as exc:
+                    logger.info(
+                        "Semantic chunking unavailable; falling back to recursive",
+                        extra={"reason": str(exc)},
+                    )
+
+            if not chunks:
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=self.settings.chunk_size,
+                    chunk_overlap=self.settings.chunk_overlap,
+                    separators=["\n\n", "\n", ". ", " ", ""],
+                )
+                chunks = text_splitter.split_documents(docs)
+
+            for idx, ch in enumerate(chunks):
+                ch.metadata = ch.metadata or {}
+                ch.metadata.setdefault("chunk_index", idx)
+                src = Path(str(ch.metadata.get("source", path.name))).name
+                page = ch.metadata.get("page", "")
+                ch.metadata.setdefault("chunk_id", f"{src}:{page}:{idx}")
+                ch.metadata.setdefault("owner_id", owner)
+                ch.metadata.setdefault("collection_name", collection_name)
+            if not chunks:
+                raise InvalidPDFError("No extractable text found in the uploaded PDF")
+
+            logger.info(
+                "PDF chunking complete",
+                extra={
+                    "upload_filename": path.name,
+                    "chunk_count": len(chunks),
+                    "collection_name": collection_name,
+                },
             )
-        except Exception as exc:
-            raise self._vector_error_from_exception(exc) from exc
+
+            try:
+                logger.info(
+                    "Creating PGVector collection and inserting embeddings",
+                    extra={"upload_filename": path.name, "collection_name": collection_name, "chunk_count": len(chunks)},
+                )
+                PGVector.from_documents(
+                    documents=chunks,
+                    embedding=get_embeddings(),
+                    collection_name=collection_name,
+                    connection_string=self.settings.database_url,
+                    use_jsonb=True,
+                    pre_delete_collection=True,
+                    create_extension=False,
+                )
+            except Exception as exc:
+                raise self._vector_error_from_exception(exc) from exc
 
         logger.info(
             "PDF stored in PGVector",
@@ -110,8 +140,8 @@ class PDFProcessingService:
         self.document_repo.upsert_document(
             owner_id=owner,
             collection_name=collection_name,
-            filename=filename or path.name,
-            stored_filename=stored_filename or path.name,
+            filename=source_label,
+            stored_filename=stored_filename or Path(str(file_path)).name,
         )
         return collection_name
 

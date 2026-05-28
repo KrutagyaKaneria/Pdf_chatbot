@@ -3,7 +3,7 @@ import AppShell from "../components/layout/AppShell";
 import MessageList from "../components/chat/MessageList";
 import MessageInput from "../components/chat/MessageInput";
 import PdfViewerPane from "../components/pdf/PdfViewerPane";
-import { useChatStore } from "../store/useChatStore";
+import { chatTranscriptStorageKey, useChatStore } from "../store/useChatStore";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { apiJson } from "../lib/api";
@@ -11,7 +11,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { WelcomeOnboarding } from '../components/onboarding/WelcomeOnboarding'
 
 function WorkspacePage() {
-  const { setChats, activeCollection } = useChatStore();
+  const { setChats, activeCollection, activeChatId, messages } = useChatStore();
   const [showPdf, setShowPdf] = useState(true);
   const { ready, user } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -60,6 +60,14 @@ function WorkspacePage() {
     }
     setShowOnboarding(false)
   }
+
+  useEffect(() => {
+    if (!activeChatId) {
+      return
+    }
+
+    window.localStorage.setItem(chatTranscriptStorageKey(activeChatId), JSON.stringify(messages))
+  }, [activeChatId, messages])
 
   if (!ready) {
     return (

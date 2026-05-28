@@ -1,8 +1,25 @@
 // Use a relative base by default so development requests can be proxied
 // by the CRA dev server (see package.json `proxy`), avoiding cross-origin
-// cookie issues during local development. Set `REACT_APP_API_BASE_URL` in
-// production or non-proxied environments.
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ?? ''
+// cookie issues during local development. In non-local builds, prefer the
+// configured API URL and ignore localhost values that may have been baked
+// into a bundle by accident.
+function resolveApiBaseUrl() {
+  const configuredBaseUrl = (
+    process.env.REACT_APP_API_BASE_URL ?? process.env.REACT_APP_BACKEND_URL ?? ''
+  ).trim()
+  if (typeof window === 'undefined') {
+    return configuredBaseUrl
+  }
+
+  const isLocalHost = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+  if (configuredBaseUrl && (!configuredBaseUrl.includes('localhost') || isLocalHost)) {
+    return configuredBaseUrl.replace(/\/$/, '')
+  }
+
+  return isLocalHost ? '' : window.location.origin
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 type StoredUser = {
   user_id: string

@@ -35,6 +35,70 @@ npm start
 
 Frontend defaults to `http://localhost:3000`.
 
+## Render Deployment
+
+Render works best with two services:
+
+1. A Python web service for the FastAPI backend.
+2. A static site for the React frontend.
+
+Use these settings:
+
+Backend web service:
+
+```text
+Build command: poetry install --no-interaction --no-ansi
+Start command: poetry run python app/server.py
+```
+
+Frontend static site:
+
+```text
+Build command: npm ci && npm run build
+Publish directory: build
+```
+
+Required backend environment variables on Render:
+
+- `GROQ_API_KEY`
+- `DATABASE_URL`
+- `REDIS_URL`
+- `CLOUDINARY_URL` or `CLOUDINARY_CLOUD_NAME` + `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET`
+- `ENVIRONMENT=production`
+- `CORS_ORIGINS=<your Render frontend URL>`
+- `AUTH_COOKIE_SAMESITE=none`
+- `AUTH_COOKIE_SECURE=true`
+
+Required frontend environment variable on Render:
+
+- `REACT_APP_API_BASE_URL=<your Render backend URL>`
+
+If you keep background PDF processing enabled, also add a separate worker service with:
+
+```text
+Start command: poetry run python -m app.worker
+```
+
+The worker requires the same Redis and database settings as the web service.
+
+## Cloud Migration
+
+Production storage and infrastructure are managed services:
+
+- Supabase Postgres provides the primary relational database and PGVector support.
+- Redis Cloud provides semantic cache, retrieval cache, memory cache, token tracking, and queue state.
+- Cloudinary stores uploaded PDFs and serves them through secure delivery URLs.
+
+Uploaded PDFs are no longer written to a local `uploads/` folder in production. The backend uploads them to Cloudinary, stores the metadata in PostgreSQL, and the RAG pipeline downloads the Cloudinary asset when it needs to chunk and embed the document.
+
+For production, keep these rules in place:
+
+- Use `DATABASE_URL` from Supabase.
+- Use `REDIS_URL` from Redis Cloud.
+- Use `CLOUDINARY_URL` or the split Cloudinary env vars.
+- Do not rely on local Docker for production data services.
+- Keep `AUTH_COOKIE_SAMESITE=none` and `AUTH_COOKIE_SECURE=true` when the frontend and backend are on different domains.
+
 ## Configuration
 
 App settings are read from `app/.env` (loaded automatically) and environment variables.

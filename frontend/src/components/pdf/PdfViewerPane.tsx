@@ -5,7 +5,7 @@ import { apiFetch } from "../../lib/api";
 
 const PdfViewerPane = () => {
   const { activeCollection } = useChatStore();
-  const { pdfPage } = useUiStore();
+  const { pdfPage, setPdfPage } = useUiStore();
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
@@ -49,6 +49,32 @@ const PdfViewerPane = () => {
       }
     };
   }, [encodedFilename, fileKey]);
+
+  useEffect(() => {
+    if (!activeCollection) {
+      return;
+    }
+
+    const storageKey = `pdf_chatbot_pdf_page:${activeCollection.storedFilename || activeCollection.collectionName}`;
+    const storedValue = window.localStorage.getItem(storageKey);
+    const storedPage = storedValue ? Number(storedValue) : NaN;
+
+    if (Number.isFinite(storedPage) && storedPage > 0) {
+      setPdfPage(storedPage);
+      return;
+    }
+
+    setPdfPage(1);
+  }, [activeCollection, setPdfPage]);
+
+  useEffect(() => {
+    if (!activeCollection) {
+      return;
+    }
+
+    const storageKey = `pdf_chatbot_pdf_page:${activeCollection.storedFilename || activeCollection.collectionName}`;
+    window.localStorage.setItem(storageKey, String(pdfPage));
+  }, [activeCollection, pdfPage]);
 
   const pdfUrl = useMemo(() => {
     if (!pdfBlobUrl) return "";

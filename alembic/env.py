@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+import sys
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.db.base import Base
-from app.db import chat_models  # noqa: F401
-from app.db import user_models  # noqa: F401
-from app.core.config import get_settings
+sys.path.insert(0, "")
 
 config = context.config
 fileConfig(config.config_file_name)
+
+from app.core.config import get_settings
+from app.db.base import Base
+from app.db import chat_models  # noqa: F401
+from app.db import document_models  # noqa: F401
+from app.db import user_models  # noqa: F401
+
 
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)
@@ -20,12 +25,9 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = settings.database_url
-    context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
-
+    context.configure(url=settings.database_url, target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
         context.run_migrations()
-
 
 
 def run_migrations_online() -> None:
@@ -37,7 +39,6 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
-
         with context.begin_transaction():
             context.run_migrations()
 

@@ -36,6 +36,14 @@ class DocumentRepository:
             )
             return db.scalars(stmt).first()
 
+    def get_by_public_id(self, owner_id: str, cloudinary_public_id: str) -> UserDocument | None:
+        with create_db_session() as db:
+            stmt: Select[tuple[UserDocument]] = select(UserDocument).where(
+                UserDocument.owner_id == owner_id,
+                UserDocument.cloudinary_public_id == cloudinary_public_id,
+            )
+            return db.scalars(stmt).first()
+
     def ensure_collection_owner(self, owner_id: str, collection_name: str) -> UserDocument:
         row = self.get_any_by_collection(collection_name)
         if not row or row.owner_id != owner_id:
@@ -48,6 +56,11 @@ class DocumentRepository:
         collection_name: str,
         filename: str,
         stored_filename: str,
+        cloudinary_public_id: str | None = None,
+        cloudinary_url: str | None = None,
+        cloudinary_resource_type: str | None = None,
+        file_size_bytes: int | None = None,
+        mime_type: str | None = None,
     ) -> UserDocument:
         now = _utc_now()
         with create_db_session() as db:
@@ -64,6 +77,11 @@ class DocumentRepository:
                     .values(
                         filename=filename,
                         stored_filename=stored_filename,
+                        cloudinary_public_id=cloudinary_public_id,
+                        cloudinary_url=cloudinary_url,
+                        cloudinary_resource_type=cloudinary_resource_type,
+                        file_size_bytes=file_size_bytes,
+                        mime_type=mime_type,
                         updated_at=now,
                     )
                 )
@@ -76,6 +94,11 @@ class DocumentRepository:
                 collection_name=collection_name,
                 filename=filename,
                 stored_filename=stored_filename,
+                cloudinary_public_id=cloudinary_public_id,
+                cloudinary_url=cloudinary_url,
+                cloudinary_resource_type=cloudinary_resource_type,
+                file_size_bytes=file_size_bytes,
+                mime_type=mime_type,
                 created_at=now,
                 updated_at=now,
             )
