@@ -60,7 +60,18 @@ def init_db() -> None:
                 conn.execute(text("ALTER TABLE users ALTER COLUMN updated_at SET NOT NULL"))
 
         if "user_documents" in inspector.get_table_names():
+            existing_cols = {c.get("name") for c in inspector.get_columns("user_documents")}
             with engine.begin() as conn:
+                if "cloudinary_public_id" not in existing_cols:
+                    conn.execute(text("ALTER TABLE user_documents ADD COLUMN cloudinary_public_id VARCHAR(255)"))
+                if "cloudinary_url" not in existing_cols:
+                    conn.execute(text("ALTER TABLE user_documents ADD COLUMN cloudinary_url TEXT"))
+                if "cloudinary_resource_type" not in existing_cols:
+                    conn.execute(text("ALTER TABLE user_documents ADD COLUMN cloudinary_resource_type VARCHAR(32)"))
+                if "file_size_bytes" not in existing_cols:
+                    conn.execute(text("ALTER TABLE user_documents ADD COLUMN file_size_bytes BIGINT"))
+                if "mime_type" not in existing_cols:
+                    conn.execute(text("ALTER TABLE user_documents ADD COLUMN mime_type VARCHAR(128)"))
                 conn.execute(
                     text(
                         "CREATE UNIQUE INDEX IF NOT EXISTS ux_user_documents_collection ON user_documents(collection_name)"
@@ -69,6 +80,11 @@ def init_db() -> None:
                 conn.execute(
                     text(
                         "CREATE INDEX IF NOT EXISTS ix_user_documents_owner_stored ON user_documents(owner_id, stored_filename)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_user_documents_owner_public_id ON user_documents(owner_id, cloudinary_public_id)"
                     )
                 )
                 # Best-effort backfill for legacy chat rows so existing user chats retain access.
@@ -81,6 +97,9 @@ def init_db() -> None:
                             collection_name,
                             filename,
                             stored_filename,
+                            cloudinary_public_id,
+                            cloudinary_url,
+                            cloudinary_resource_type,
                             created_at,
                             updated_at
                         )
@@ -90,6 +109,9 @@ def init_db() -> None:
                             cs.collection_name,
                             COALESCE(cs.filename, cs.stored_filename, cs.collection_name),
                             COALESCE(cs.stored_filename, cs.filename),
+                            NULL,
+                            NULL,
+                            NULL,
                             NOW(),
                             NOW()
                         FROM chat_sessions cs

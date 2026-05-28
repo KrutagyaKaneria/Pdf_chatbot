@@ -12,13 +12,18 @@ from app.core.config import Settings, get_settings
 @lru_cache
 def get_engine() -> Engine:
     settings: Settings = get_settings()
+    database_url = settings.database_url
+    if (settings.environment or "").lower() == "production" and "sslmode=" not in database_url:
+        separator = "&" if "?" in database_url else "?"
+        database_url = f"{database_url}{separator}sslmode=require"
     return create_engine(
-        settings.database_url,
+        database_url,
         connect_args={"connect_timeout": 5},
         pool_size=settings.db_pool_size,
         max_overflow=settings.db_max_overflow,
         pool_timeout=settings.db_pool_timeout,
         pool_pre_ping=True,
+        pool_recycle=1800,
         future=True,
     )
 

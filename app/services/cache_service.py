@@ -31,13 +31,22 @@ class CacheKey:
 @lru_cache
 def get_redis_client() -> Redis:
     settings: Settings = get_settings()
-    return Redis.from_url(settings.redis_url, decode_responses=False)
+    return Redis.from_url(
+        settings.redis_url,
+        decode_responses=False,
+        socket_connect_timeout=5,
+        socket_timeout=5,
+        retry_on_timeout=True,
+        health_check_interval=30,
+        socket_keepalive=True,
+    )
 
 
 class CacheService:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
         self._client = get_redis_client()
+        self._fallback = LocalTTLCache()
 
     def enabled(self) -> bool:
         return bool(self.settings.cache_enabled)
@@ -48,11 +57,20 @@ class CacheService:
         try:
             raw = self._client.get(key.render())
             if raw is None:
-                return None
+                fallback = self._fallback.get(key.render())
+                if fallback is None:
+                    return None
+                return json.loads(fallback.decode("utf-8"))
             return json.loads(raw.decode("utf-8"))
         except Exception as exc:
             logger.debug("Cache get_json failed", extra={"key": key.render(), "reason": str(exc)})
-            return None
+            fallback = self._fallback.get(key.render())
+            if fallback is None:
+                return None
+            try:
+                return json.loads(fallback.decode("utf-8"))
+            except Exception:
+                return None
 
     def set_json(self, key: CacheKey, value: Any, ttl_seconds: int | None = None) -> None:
         if not self.enabled():
@@ -63,15 +81,19 @@ class CacheService:
             self._client.set(name=key.render(), value=payload, ex=ttl)
         except Exception as exc:
             logger.debug("Cache set_json failed", extra={"key": key.render(), "reason": str(exc)})
+            self._fallback.set(key.render(), json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), ttl)
 
     def get_bytes(self, key: CacheKey) -> bytes | None:
         if not self.enabled():
             return None
         try:
-            return self._client.get(key.render())
+            raw = self._client.get(key.render())
+            if raw is not None:
+                return raw
+            return self._fallback.get(key.render())
         except Exception as exc:
             logger.debug("Cache get_bytes failed", extra={"key": key.render(), "reason": str(exc)})
-            return None
+            return self._fallback.get(key.render())
 
     def set_bytes(self, key: CacheKey, value: bytes, ttl_seconds: int | None = None) -> None:
         if not self.enabled():
@@ -81,6 +103,7 @@ class CacheService:
             self._client.set(name=key.render(), value=value, ex=ttl)
         except Exception as exc:
             logger.debug("Cache set_bytes failed", extra={"key": key.render(), "reason": str(exc)})
+            self._fallback.set(key.render(), value, ttl)
 
     def delete(self, key: CacheKey) -> None:
         if not self.enabled():
@@ -89,6 +112,8 @@ class CacheService:
             self._client.delete(key.render())
         except Exception as exc:
             logger.debug("Cache delete failed", extra={"key": key.render(), "reason": str(exc)})
+        finally:
+            self._fallback._store.pop(key.render(), None)
 
     def ping(self) -> bool:
         if not self.enabled():

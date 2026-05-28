@@ -7,9 +7,20 @@ from pydantic import BaseModel, Field, field_validator
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 APP_DIR = Path(__file__).resolve().parents[1]
-ENV_FILE = APP_DIR / ".env"
+ROOT_ENV_FILE = ROOT_DIR / ".env"
+APP_ENV_FILE = APP_DIR / ".env"
 
-load_dotenv(ENV_FILE)
+load_dotenv(ROOT_ENV_FILE)
+load_dotenv(APP_ENV_FILE)
+
+
+def _split_csv(*values: str | None) -> list[str]:
+    origins: list[str] = []
+    for value in values:
+        if not value:
+            continue
+        origins.extend(origin.strip() for origin in value.split(",") if origin.strip())
+    return list(dict.fromkeys(origins))
 
 
 class Settings(BaseModel):
@@ -109,6 +120,12 @@ class Settings(BaseModel):
     auth_refresh_cookie_name: str = "refresh_token"
     auth_cookie_secure: bool = False
     auth_cookie_samesite: str = "lax"
+    cloudinary_url: str | None = None
+    cloudinary_cloud_name: str | None = None
+    cloudinary_api_key: str | None = None
+    cloudinary_api_secret: str | None = None
+    cloudinary_folder: str = "pdf-chatbot"
+    cloudinary_timeout_seconds: int = 60
     clerk_api_key: str | None = None
     clerk_frontend_api: str | None = None
 
@@ -130,6 +147,11 @@ class Settings(BaseModel):
             missing.append("GROQ_API_KEY")
         if not self.database_url:
             missing.append("DATABASE_URL or PGVECTOR_CONNECTION_STRING")
+        if (self.environment or "").lower() == "production":
+            has_cloudinary_url = bool(self.cloudinary_url)
+            has_cloudinary_parts = bool(self.cloudinary_cloud_name and self.cloudinary_api_key and self.cloudinary_api_secret)
+            if not (has_cloudinary_url or has_cloudinary_parts):
+                missing.append("CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET")
         if missing:
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 
@@ -138,11 +160,29 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     import os
 
-    cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+    environment = os.getenv("ENVIRONMENT", "development")
+    cors_origins = _split_csv(
+        os.getenv("CORS_ORIGINS"),
+        os.getenv("FRONTEND_URL"),
+        os.getenv("FRONTEND_URLS"),
+    )
+    if not cors_origins:
+        cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+    auth_cookie_samesite = os.getenv("AUTH_COOKIE_SAMESITE")
+    if not auth_cookie_samesite:
+        auth_cookie_samesite = "none" if environment.lower() == "production" else "lax"
+
+    auth_cookie_secure_env = os.getenv("AUTH_COOKIE_SECURE")
+    if auth_cookie_secure_env is None:
+        auth_cookie_secure = environment.lower() == "production"
+    else:
+        auth_cookie_secure = auth_cookie_secure_env.lower() == "true"
+
     settings = Settings(
         app_name=os.getenv("APP_NAME", "Dynamic PDF RAG API"),
-        environment=os.getenv("ENVIRONMENT", "development"),
-        cors_origins=[origin.strip() for origin in cors_origins.split(",") if origin.strip()],
+        environment=environment,
+        cors_origins=cors_origins,
         groq_api_key=os.getenv("GROQ_API_KEY", ""),
         groq_model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
@@ -222,8 +262,14 @@ def get_settings() -> Settings:
         access_token_exp_minutes=int(os.getenv("ACCESS_TOKEN_EXP_MINUTES", "15")),
         refresh_token_exp_days=int(os.getenv("REFRESH_TOKEN_EXP_DAYS", "30")),
         auth_refresh_cookie_name=os.getenv("AUTH_REFRESH_COOKIE_NAME", "refresh_token"),
-        auth_cookie_secure=os.getenv("AUTH_COOKIE_SECURE", "false").lower() == "true",
-        auth_cookie_samesite=os.getenv("AUTH_COOKIE_SAMESITE", "lax"),
+        auth_cookie_secure=auth_cookie_secure,
+        auth_cookie_samesite=auth_cookie_samesite,
+        cloudinary_url=os.getenv("CLOUDINARY_URL"),
+        cloudinary_cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+        cloudinary_api_key=os.getenv("CLOUDINARY_API_KEY"),
+        cloudinary_api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+        cloudinary_folder=os.getenv("CLOUDINARY_FOLDER", "pdf-chatbot"),
+        cloudinary_timeout_seconds=int(os.getenv("CLOUDINARY_TIMEOUT_SECONDS", "60")),
     )
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     return settings

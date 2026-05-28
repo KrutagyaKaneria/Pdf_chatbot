@@ -28,6 +28,10 @@ export interface StoredCollection {
   storedFilename?: string;
 }
 
+function chatTranscriptStorageKey(chatId: string): string {
+  return `pdf_chatbot_chat_transcript:${chatId}`;
+}
+
 interface ChatState {
   messages: Message[];
   chats: ChatSummary[];
@@ -135,20 +139,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const openedChatId = (payload as any)?.chat_id ?? (data as any)?.chat_id;
       const payloadMessages = (payload as any)?.messages ?? (data as any)?.messages;
       const messages = Array.isArray(payloadMessages) ? payloadMessages : [];
+      const cachedMessagesRaw = window.localStorage.getItem(chatTranscriptStorageKey(openedChatId));
+      let cachedMessages: Message[] = [];
+      if (cachedMessagesRaw) {
+        try {
+          cachedMessages = JSON.parse(cachedMessagesRaw) as Message[];
+        } catch {
+          window.localStorage.removeItem(chatTranscriptStorageKey(openedChatId));
+        }
+      }
 
       const openedCollection = {
         collectionName: collectionName,
         filename: filename || "Uploaded PDF",
         storedFilename: storedFilename || undefined,
       };
+
+      const restoredMessages = messages.map((msg: { role: string; content: string }, index: number) => ({
+        message: msg.content,
+        isUser: msg.role === "user",
+        sources: cachedMessages[index]?.sources,
+      }));
       
       set({
         activeChatId: openedChatId,
         activeCollection: openedCollection,
-        messages: messages.map((msg: { role: string; content: string }) => ({
-          message: msg.content,
-          isUser: msg.role === "user",
-        }))
+        messages: restoredMessages,
       });
       window.localStorage.setItem(collectionStorageKey(), JSON.stringify(openedCollection));
     } catch (err) {
@@ -167,3 +183,5 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
 }));
+
+export { chatTranscriptStorageKey };

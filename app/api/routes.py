@@ -1,24 +1,23 @@
+import uuid
+from pathlib import Path
+from typing import Optional
+
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.concurrency import iterate_in_threadpool, run_in_threadpool
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import Settings, get_settings
-from app.models.schemas import (
-    ChatListData,
-    ChatRequest,
-    UploadData,
-    UploadJobData,
-)
+from app.models.schemas import ChatListData, ChatRequest, UploadData, UploadJobData
 from app.services.chat_service import ChatService, chat_service
 from app.services.pdf_service import PDFProcessingService
 from app.services.pdf_queue_service import PDFQueueService
 from app.services.document_repository import DocumentRepository
+from app.services.cloudinary_service import CloudinaryStorageService, download_url_to_temp
 from app.core.exceptions import ValidationAppError
 from app.core.auth import get_current_user
 from app.utils.files import save_upload_file
 from app.utils.responses import success_response
-
 
 router = APIRouter()
 
@@ -39,12 +38,18 @@ def get_document_repo() -> DocumentRepository:
     return DocumentRepository()
 
 
+def get_cloudinary_storage(settings: Settings = Depends(get_settings)) -> CloudinaryStorageService:
+    return CloudinaryStorageService(settings)
+
+
 @router.post("/upload-pdf", status_code=status.HTTP_201_CREATED)
 async def upload_pdf(
     file: UploadFile = File(...),
     settings: Settings = Depends(get_settings),
     pdf_service: PDFProcessingService = Depends(get_pdf_service),
     pdf_queue: PDFQueueService = Depends(get_pdf_queue),
+    cloudinary_storage: CloudinaryStorageService = Depends(get_cloudinary_storage),
+    doc_repo: DocumentRepository = Depends(get_document_repo),
     current_user: dict = Depends(get_current_user),
     background: bool = False,
 ):
@@ -52,26 +57,47 @@ async def upload_pdf(
     if not user_id:
         raise ValidationAppError("Missing authenticated user")
 
-    file_path = save_upload_file(file, settings.upload_dir, settings.max_upload_size_bytes)
+    # Save locally first for processing fallback
+    local_path = save_upload_file(file, settings.upload_dir, settings.max_upload_size_bytes)
 
+    # Try to upload to Cloudinary (optional)
+    cloud_meta = None
+    try:
+        with open(local_path, "rb") as fh:
+            cloud_meta = cloudinary_storage.upload_pdf(fh.read(), file.filename or local_path.name, user_id)
+    except Exception:
+        cloud_meta = None
+
+    stored_filename = cloud_meta.public_id if cloud_meta else local_path.name
+
+    # Background processing: enqueue a job with cloud URL if available, else local path
     if background:
         if not pdf_queue.enabled():
-            file_path.unlink(missing_ok=True)
+            Path(local_path).unlink(missing_ok=True)
             raise ValidationAppError(
                 "Background PDF processing requires Redis cache enabled (CACHE_ENABLED=true) and PDF_BACKGROUND_ENABLED=true"
             )
+
         job_id = pdf_queue.enqueue(
-            file_path=file_path,
-            filename=file.filename or file_path.name,
-            stored_filename=file_path.name,
+            source_url=(cloud_meta.secure_url if cloud_meta else str(local_path)),
+            filename=file.filename or local_path.name,
+            stored_filename=stored_filename,
             owner_id=user_id,
+            cloudinary_public_id=(cloud_meta.public_id if cloud_meta else None),
+            cloudinary_url=(cloud_meta.secure_url if cloud_meta else None),
+            cloudinary_resource_type=(cloud_meta.resource_type if cloud_meta else None),
+            file_size_bytes=(cloud_meta.bytes if cloud_meta else None),
+            mime_type=(cloud_meta.mime_type if cloud_meta else None),
         )
+
         data = UploadJobData(
             job_id=job_id,
             state="queued",
-            filename=file.filename or file_path.name,
-            stored_filename=file_path.name,
+            filename=file.filename or local_path.name,
+            stored_filename=stored_filename,
             status_url=f"/upload-pdf/jobs/{job_id}",
+            cloudinary_public_id=(cloud_meta.public_id if cloud_meta else None),
+            cloudinary_url=(cloud_meta.secure_url if cloud_meta else None),
         )
         return success_response(
             "PDF upload accepted for background processing",
@@ -83,22 +109,39 @@ async def upload_pdf(
             status_url=data.status_url,
         )
 
+    # Synchronous processing: if cloud copy exists, download temp and process; otherwise process local file
+    temp_path: Optional[Path] = None
     try:
-        collection_name = await run_in_threadpool(
-            pdf_service.process_uploaded_pdf,
-            file_path,
-            user_id,
-            file.filename or file_path.name,
-            file_path.name,
-        )
-    except Exception:
-        file_path.unlink(missing_ok=True)
-        raise
+        if cloud_meta and cloud_meta.secure_url:
+            temp_path = download_url_to_temp(cloud_meta.secure_url)
+            collection_name = await run_in_threadpool(
+                pdf_service.process_uploaded_pdf,
+                temp_path,
+                user_id,
+                file.filename or temp_path.name,
+                cloud_meta.public_id,
+            )
+        else:
+            collection_name = await run_in_threadpool(
+                pdf_service.process_uploaded_pdf,
+                local_path,
+                user_id,
+                file.filename or local_path.name,
+                local_path.name,
+            )
+    finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        # remove local copy if we uploaded to cloud to save disk
+        if cloud_meta:
+            Path(local_path).unlink(missing_ok=True)
 
     data = UploadData(
         collection_name=collection_name,
-        filename=file.filename or file_path.name,
-        stored_filename=file_path.name,
+        filename=file.filename or local_path.name,
+        stored_filename=stored_filename,
+        cloudinary_public_id=(cloud_meta.public_id if cloud_meta else None),
+        cloudinary_url=(cloud_meta.secure_url if cloud_meta else None),
     )
     return success_response(
         "PDF uploaded and indexed successfully",
@@ -147,11 +190,16 @@ async def get_pdf_file(
     if not doc:
         raise StarletteHTTPException(status_code=404, detail="PDF not found")
 
+    # Prefer cloud URL when available
+    cloud_url = getattr(doc, "cloudinary_url", None) or getattr(doc, "cloudinary_secure_url", None)
+    if cloud_url:
+        return RedirectResponse(url=cloud_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
     file_path = settings.upload_dir / stored_filename
     if not file_path.exists() or not file_path.is_file():
         raise StarletteHTTPException(status_code=404, detail="PDF not found")
 
-    return FileResponse(path=file_path, media_type="application/pdf", filename=doc.filename)
+    return FileResponse(path=file_path, media_type="application/pdf", filename=getattr(doc, "filename", stored_filename))
 
 
 @router.get("/chats")

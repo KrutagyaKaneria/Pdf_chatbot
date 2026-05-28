@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
@@ -23,7 +22,12 @@ class PdfJobStatus:
     filename: str
     stored_filename: str
     owner_id: str
-    file_path: str
+    source_url: str
+    cloudinary_public_id: str | None = None
+    cloudinary_url: str | None = None
+    cloudinary_resource_type: str | None = None
+    file_size_bytes: int | None = None
+    mime_type: str | None = None
     collection_name: str | None = None
     error: str | None = None
     retries: int = 0
@@ -47,7 +51,18 @@ class PDFQueueService:
     def _status_key(self, job_id: str) -> str:
         return CacheKey("pdfjob", (job_id,)).render()
 
-    def enqueue(self, file_path: Path, filename: str, stored_filename: str, owner_id: str) -> str:
+    def enqueue(
+        self,
+        source_url: str,
+        filename: str,
+        stored_filename: str,
+        owner_id: str,
+        cloudinary_public_id: str | None = None,
+        cloudinary_url: str | None = None,
+        cloudinary_resource_type: str | None = None,
+        file_size_bytes: int | None = None,
+        mime_type: str | None = None,
+    ) -> str:
         if not self.enabled():
             raise RuntimeError("PDF background queue is disabled")
 
@@ -60,7 +75,12 @@ class PDFQueueService:
             "filename": filename,
             "stored_filename": stored_filename,
             "owner_id": owner_id,
-            "file_path": str(file_path),
+            "source_url": source_url,
+            "cloudinary_public_id": cloudinary_public_id,
+            "cloudinary_url": cloudinary_url,
+            "cloudinary_resource_type": cloudinary_resource_type,
+            "file_size_bytes": file_size_bytes,
+            "mime_type": mime_type,
             "collection_name": "",
             "error": "",
             "retries": 0,

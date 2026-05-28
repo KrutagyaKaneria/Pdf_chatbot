@@ -28,6 +28,8 @@ class UploadData(BaseModel):
     collection_name: str
     filename: str
     stored_filename: str
+    cloudinary_public_id: str | None = None
+    cloudinary_url: str | None = None
 
 
 class UploadResponse(ApiResponse[UploadData]):
@@ -43,6 +45,8 @@ class UploadJobData(BaseModel):
     filename: str
     stored_filename: str
     status_url: str
+    cloudinary_public_id: str | None = None
+    cloudinary_url: str | None = None
     collection_name: str | None = None
     error: str | None = None
 
