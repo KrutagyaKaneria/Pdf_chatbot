@@ -9,17 +9,26 @@ import { useAuth } from "../../auth/AuthProvider";
 
 const Sidebar = () => {
   const { chats, activeChatId, activeCollection } = useChatStore();
-  const { isSidebarOpen, toggleSidebar } = useUiStore();
+  const { isSidebarOpen, toggleSidebar, isMobileLayout } = useUiStore();
   const { user, logout } = useAuth();
 
+  const mobileClass = isMobileLayout
+    ? `fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72'} transition-transform duration-300 bg-background/90 glass-sidebar border-r border-white/5`
+    : `h-screen glass-sidebar flex flex-col py-6 z-40 border-r border-white/5 shrink-0 relative transition-all duration-300`;
+
   return (
-    <motion.aside
-      initial={false}
-      animate={{ 
-        width: isSidebarOpen ? 288 : 80,
-      }}
-      className="h-screen glass-sidebar flex flex-col py-6 z-40 border-r border-white/5 shrink-0 relative transition-all duration-300"
-    >
+    <>
+      {isMobileLayout && isSidebarOpen && (
+        <div onClick={toggleSidebar} className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" />
+      )}
+
+      <motion.aside
+        initial={false}
+        animate={{
+          width: isSidebarOpen && !isMobileLayout ? 288 : isMobileLayout ? undefined : 80,
+        }}
+        className={mobileClass}
+      >
       <button 
         onClick={toggleSidebar}
         className="absolute -right-3 top-8 w-6 h-6 bg-surface-container-high border border-white/10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-surface-bright transition-colors z-50"
@@ -119,6 +128,7 @@ const Sidebar = () => {
         </div>
       </div>
     </motion.aside>
+    </>
   );
 };
 

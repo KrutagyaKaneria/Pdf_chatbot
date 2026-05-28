@@ -1,14 +1,18 @@
 import React, {useState} from 'react'
-import {Link} from 'react-router-dom'
+import {Link, Navigate} from 'react-router-dom'
 import {useAuth} from './AuthProvider'
 
 export const SignupPage: React.FC = () => {
-  const {signup} = useAuth()
+  const {signup, user, ready} = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  if (ready && user) {
+    return <Navigate to="/app" replace />
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()

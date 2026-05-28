@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, {useEffect, useMemo, useState} from 'react'
 import AppShell from "../components/layout/AppShell";
 import MessageList from "../components/chat/MessageList";
 import MessageInput from "../components/chat/MessageInput";
@@ -8,17 +8,34 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { apiJson } from "../lib/api";
 import { useAuth } from "../auth/AuthProvider";
+import { WelcomeOnboarding } from '../components/onboarding/WelcomeOnboarding'
 
 function WorkspacePage() {
   const { setChats, activeCollection } = useChatStore();
   const [showPdf, setShowPdf] = useState(true);
   const { ready, user } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const onboardingKey = useMemo(() => (user?.user_id ? `docchat:onboarding_seen:${user.user_id}` : null), [user?.user_id])
+
+  const tipOfTheDay = useMemo(() => {
+    const tips = [
+      'Start with a summary prompt, then drill into sections using follow-up questions.',
+      'Use citation chips to move from the answer back into the exact page.',
+      'Try asking for tables, action items, or key takeaways when the document is dense.',
+    ]
+    return tips[new Date().getDate() % tips.length]
+  }, [])
 
   useEffect(() => {
     if (!ready || !user?.user_id) {
       setChats([]);
+      setShowOnboarding(false);
       return;
     }
+
+    const seenOnboarding = onboardingKey ? window.localStorage.getItem(onboardingKey) === '1' : true
+    setShowOnboarding(!seenOnboarding)
 
     const fetchChats = async () => {
       try {
@@ -35,7 +52,14 @@ function WorkspacePage() {
     const handleRefresh = () => void fetchChats();
     window.addEventListener("refresh-chats", handleRefresh);
     return () => window.removeEventListener("refresh-chats", handleRefresh);
-  }, [ready, user?.user_id, setChats]);
+  }, [ready, user?.user_id, onboardingKey, setChats]);
+
+  const completeOnboarding = () => {
+    if (onboardingKey) {
+      window.localStorage.setItem(onboardingKey, '1')
+    }
+    setShowOnboarding(false)
+  }
 
   if (!ready) {
     return (
@@ -46,36 +70,48 @@ function WorkspacePage() {
   }
 
   return (
-    <AppShell>
-      <div className="flex w-full h-full">
-        <div className="flex-1 flex flex-col relative h-full min-w-0 transition-all duration-300">
-          <div className="absolute top-4 right-4 z-50 md:block hidden">
-            <button
-              onClick={() => setShowPdf(!showPdf)}
-              className="p-2 bg-surface-container-highest border border-white/10 rounded-full text-on-surface-variant hover:text-primary hover:bg-white/5 transition-all shadow-lg"
-              title={showPdf ? "Hide Document" : "Show Document"}
-            >
-              {showPdf ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
-            </button>
+    <>
+      <AppShell>
+        <div className="flex h-full w-full">
+          <div className="relative flex min-w-0 flex-1 flex-col transition-all duration-300">
+            <div className="absolute right-4 top-4 z-50 hidden md:block">
+              <button
+                onClick={() => setShowPdf(!showPdf)}
+                className="rounded-full border border-white/10 bg-surface-container-highest p-2 text-on-surface-variant shadow-lg transition-all hover:bg-white/5 hover:text-primary"
+                title={showPdf ? 'Hide Document' : 'Show Document'}
+              >
+                {showPdf ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+              </button>
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col">
+              <MessageList />
+              <MessageInput />
+            </div>
           </div>
 
-          <MessageList />
-          <MessageInput />
+          <motion.div
+            initial={false}
+            animate={{
+              width: showPdf && activeCollection ? '50%' : '0%',
+              opacity: showPdf && activeCollection ? 1 : 0,
+            }}
+            transition={{type: 'spring', stiffness: 300, damping: 30}}
+            className="hidden h-full shrink-0 overflow-hidden md:block"
+          >
+            {showPdf && activeCollection && <PdfViewerPane />}
+          </motion.div>
         </div>
+      </AppShell>
 
-        <motion.div
-          initial={false}
-          animate={{
-            width: showPdf && activeCollection ? "50%" : "0%",
-            opacity: showPdf && activeCollection ? 1 : 0,
-          }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="h-full shrink-0 overflow-hidden hidden md:block"
-        >
-          {showPdf && activeCollection && <PdfViewerPane />}
-        </motion.div>
-      </div>
-    </AppShell>
+      {showOnboarding && ready && user && (
+        <WelcomeOnboarding
+          userName={user.name || user.email || user.user_id}
+          tipOfTheDay={tipOfTheDay}
+          onComplete={completeOnboarding}
+        />
+      )}
+    </>
   );
 }
 
