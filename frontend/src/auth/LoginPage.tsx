@@ -1,13 +1,20 @@
 import React, {useState} from 'react'
-import {Link} from 'react-router-dom'
+import {Link, Navigate, useLocation} from 'react-router-dom'
 import {useAuth} from './AuthProvider'
 
 export const LoginPage: React.FC = () => {
-  const {login} = useAuth()
+  const {login, user, ready} = useAuth()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  if (ready && user) {
+    return <Navigate to="/app" replace />
+  }
+
+  const signedUp = new URLSearchParams(location.search).get('created') === '1'
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,6 +36,11 @@ export const LoginPage: React.FC = () => {
           <p className="text-xs uppercase tracking-[0.3em] text-outline mb-3">DocChat SaaS</p>
           <h1 className="text-3xl font-headline italic text-white">Welcome back</h1>
           <p className="text-sm text-on-surface-variant mt-2">Sign in to your workspace and continue your document conversations.</p>
+          {signedUp && (
+            <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
+              Account created. Sign in to unlock your workspace.
+            </div>
+          )}
         </div>
 
         <form onSubmit={submit} className="space-y-4">

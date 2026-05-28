@@ -89,15 +89,17 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     resetForAuthChange()
     setToken(session.accessToken)
     setUser(session.user as User)
-    navigate('/app')
+    navigate('/app', { replace: true })
   }
 
   const signup = async (name: string, email: string, password: string) => {
-    const session = await signupRequest(name, email, password)
+    await signupRequest(name, email, password)
     resetForAuthChange()
-    setToken(session.accessToken)
-    setUser(session.user as User)
-    navigate('/app')
+    await logoutRequest().catch(() => undefined)
+    clearAuthSession()
+    setToken(null)
+    setUser(null)
+    navigate('/login?created=1', { replace: true })
   }
 
   const logout = async () => {
@@ -106,7 +108,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     setToken(null)
     setUser(null)
     clearAuthSession()
-    navigate('/login')
+    navigate('/login', { replace: true })
   }
 
   return (
