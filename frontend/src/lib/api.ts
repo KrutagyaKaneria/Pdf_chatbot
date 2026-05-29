@@ -47,6 +47,18 @@ const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
 let refreshPromise: Promise<AuthSession | null> | null = null
 
+async function readJsonResponse<T>(response: Response): Promise<T | null> {
+  const text = (await response.text()).trim()
+  if (!text) {
+    return null
+  }
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    return null
+  }
+}
+
 export function getStoredAuth(): AuthSession {
   if (typeof window === 'undefined') {
     return { accessToken: null, user: null }
@@ -83,7 +95,10 @@ export function clearAuthSession() {
 }
 
 async function parseAuthResponse(response: Response): Promise<AuthSession> {
-  const payload = (await response.json()) as AuthResponse
+  const payload = (await readJsonResponse<AuthResponse>(response)) as AuthResponse | null
+  if (!payload) {
+    throw new Error('Empty or invalid response from server')
+  }
   const user = payload.data?.user ?? payload.user ?? null
   const accessToken = payload.data?.tokens?.access_token ?? payload.tokens?.access_token ?? null
   if (!user || !accessToken) {
@@ -101,7 +116,7 @@ export async function loginRequest(email: string, password: string): Promise<Aut
     body: JSON.stringify({ email, password }),
   })
   if (!response.ok) {
-    const payload = await response.json().catch(() => null)
+    const payload = await readJsonResponse<AuthResponse & { detail?: string; message?: string }>(response)
     throw new Error(payload?.detail || payload?.message || 'Login failed')
   }
   return parseAuthResponse(response)
@@ -115,7 +130,7 @@ export async function signupRequest(name: string, email: string, password: strin
     body: JSON.stringify({ name, email, password }),
   })
   if (!response.ok) {
-    const payload = await response.json().catch(() => null)
+    const payload = await readJsonResponse<AuthResponse & { detail?: string; message?: string }>(response)
     throw new Error(payload?.detail || payload?.message || 'Signup failed')
   }
   return parseAuthResponse(response)
@@ -196,9 +211,10 @@ export async function apiFetch(input: string, init: RequestInit = {}) {
 
 export async function apiJson<T>(input: string, init: RequestInit = {}): Promise<T> {
   const response = await apiFetch(input, init)
-  const payload = await response.json().catch(() => null)
+  const payload = await readJsonResponse<T>(response)
   if (!response.ok) {
-    throw new Error(payload?.detail || payload?.message || 'Request failed')
+    const fallback = typeof payload === 'object' && payload ? (payload as { detail?: string; message?: string }) : null
+    throw new Error(fallback?.detail || fallback?.message || 'Request failed')
   }
   return payload as T
 }
