@@ -21,8 +21,15 @@ def create_app() -> FastAPI:
     configure_logging(settings)
     settings.validate_runtime()
 
-    init_db()
-    ensure_pgvector_ready()
+    try:
+        init_db()
+    except Exception as exc:
+        logger.warning("Database bootstrap skipped during startup", extra={"reason": str(exc)})
+
+    try:
+        ensure_pgvector_ready()
+    except Exception as exc:
+        logger.warning("pgvector bootstrap skipped during startup", extra={"reason": str(exc)})
 
     app = FastAPI(title=settings.app_name)
     app.add_middleware(
