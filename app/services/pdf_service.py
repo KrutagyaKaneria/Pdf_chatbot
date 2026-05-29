@@ -6,10 +6,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.request import urlopen
 
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.vectorstores import PGVector
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
 from app.core.config import Settings, get_settings
 from app.core.exceptions import InvalidPDFError, VectorStoreError
 from app.core.logging import get_logger
@@ -70,6 +66,12 @@ class PDFProcessingService:
                 "PGVector bootstrap ready for upload",
                 extra={"upload_filename": path.name, "collection_name": collection_name},
             )
+
+            # Import these lazily so the web process does not pay the PDF/PGVector startup cost.
+            from langchain_community.document_loaders import PyPDFLoader
+            from langchain_community.vectorstores import PGVector
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+
             loader = PyPDFLoader(str(path))
             docs = loader.load()
             if not docs:
