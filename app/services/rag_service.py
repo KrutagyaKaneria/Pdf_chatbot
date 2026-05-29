@@ -31,27 +31,43 @@ class RAGService:
         self.cache = CacheService(self.settings)
         self.semantic_cache = SemanticCacheService(self.settings)
         self.metrics = MetricsService(self.settings)
-
-        # Main LLM for answer generation (streaming capable).
-        self.llm = ChatGroq(
-            model=self.settings.groq_model,
-            temperature=self.settings.llm_temperature,
-            max_tokens=self.settings.llm_max_tokens,
-            api_key=self.settings.groq_api_key,
-        )
-
-        # Deterministic control LLM for rewrite/rerank (lower variance, lower token usage).
-        self.control_llm = ChatGroq(
-            model=self.settings.groq_model,
-            temperature=0.0,
-            max_tokens=min(256, int(self.settings.llm_max_tokens)),
-            api_key=self.settings.groq_api_key,
-        )
-
-        self.rewriter = QueryRewriteService(self.control_llm, self.settings)
         self.keyword_search = KeywordSearchService(self.settings)
-        self.reranker = RerankerService(self.control_llm, self.settings)
         self.obs = RetrievalObservabilityService(self.settings)
+        self._llm = None
+        self._control_llm = None
+        self._rewriter = None
+        self._reranker = None
+
+    def _get_llm(self):
+        if self._llm is None:
+            # Instantiate the Groq client only when a request actually needs generation.
+            self._llm = ChatGroq(
+                model=self.settings.groq_model,
+                temperature=self.settings.llm_temperature,
+                max_tokens=self.settings.llm_max_tokens,
+                api_key=self.settings.groq_api_key,
+            )
+        return self._llm
+
+    def _get_control_llm(self):
+        if self._control_llm is None:
+            self._control_llm = ChatGroq(
+                model=self.settings.groq_model,
+                temperature=0.0,
+                max_tokens=min(256, int(self.settings.llm_max_tokens)),
+                api_key=self.settings.groq_api_key,
+            )
+        return self._control_llm
+
+    def _get_rewriter(self):
+        if self._rewriter is None:
+            self._rewriter = QueryRewriteService(self._get_control_llm(), self.settings)
+        return self._rewriter
+
+    def _get_reranker(self):
+        if self._reranker is None:
+            self._reranker = RerankerService(self._get_control_llm(), self.settings)
+        return self._reranker
 
     def answer(
         self,
@@ -144,7 +160,7 @@ class RAGService:
                     "question": final_question,
                 }
             )
-            response = self.llm.invoke(final_prompt)
+            response = self._get_llm().invoke(final_prompt)
         except Exception as exc:
             raise LLMError("LLM generation failed", details={"reason": str(exc)}) from exc
 
@@ -282,7 +298,8 @@ class RAGService:
             parts: list[str] = []
             completed = False
             try:
-                stream_fn = getattr(self.llm, "stream", None)
+                llm = self._get_llm()
+                stream_fn = getattr(llm, "stream", None)
                 if callable(stream_fn):
                     for chunk in stream_fn(final_prompt):
                         text = getattr(chunk, "content", None)
@@ -291,7 +308,7 @@ class RAGService:
                         parts.append(str(text))
                         yield str(text)
                 else:
-                    response = self.llm.invoke(final_prompt)
+                    response = llm.invoke(final_prompt)
                     text = response.content if hasattr(response, "content") else str(response)
                     parts.append(str(text))
                     yield str(text)
@@ -462,7 +479,7 @@ class RAGService:
 
                 rerank_timer = Timer()
                 top_n = max(1, min(len(candidates), self.settings.reranker_top_n))
-                reranked = self.reranker.rerank(final_question, candidates[:top_n])
+                reranked = self._get_reranker().rerank(final_question, candidates[:top_n])
                 reranker_provider = reranked.provider
                 docs = (reranked.docs + candidates[top_n:])[:final_k]
                 timings["rerank_ms"] = rerank_timer.ms()
@@ -524,7 +541,7 @@ class RAGService:
 
         # Primary: structured rewrite (better for short follow-ups + hybrid keyword search).
         try:
-            rewrite = self.rewriter.rewrite(question=question, chat_history=chat_history, memory_summary=memory_summary)
+            rewrite = self._get_rewriter().rewrite(question=question, chat_history=chat_history, memory_summary=memory_summary)
         except Exception:
             rewrite = QueryRewrite(original_question=question, rewritten_question=question, keywords=[], confidence=0.0)
 
@@ -540,7 +557,7 @@ class RAGService:
                         "question": question,
                     }
                 )
-                response = self.llm.invoke(prompt)
+                response = self._get_llm().invoke(prompt)
                 rewritten = (getattr(response, "content", None) or str(response) or "").strip() or rewritten
             except Exception:
                 pass

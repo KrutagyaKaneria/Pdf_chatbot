@@ -3,8 +3,6 @@ import hashlib
 from functools import lru_cache
 from typing import Any
 
-from langchain_huggingface import HuggingFaceEmbeddings
-
 from app.core.config import Settings, get_settings
 from app.services.cache_service import CacheKey, CacheService, stable_hash
 
@@ -18,6 +16,9 @@ def get_embeddings():
     settings: Settings = get_settings()
     model_kwargs = {"local_files_only": True} if settings.embeddings_local_only else {}
     try:
+        # Import lazily so startup does not load the Hugging Face stack unless embeddings are actually used.
+        from langchain_huggingface import HuggingFaceEmbeddings
+
         base = HuggingFaceEmbeddings(
             model_name=settings.embedding_model,
             model_kwargs=model_kwargs,
@@ -33,7 +34,7 @@ class CachedEmbeddings:
     Keeps behavior identical while avoiding repeated embedding computation.
     """
 
-    def __init__(self, base: HuggingFaceEmbeddings, settings: Settings | None = None) -> None:
+    def __init__(self, base: Any, settings: Settings | None = None) -> None:
         self._base = base
         self._settings = settings or get_settings()
         self._cache = CacheService(self._settings)
