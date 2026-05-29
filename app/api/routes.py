@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import Settings, get_settings
 from app.models.schemas import ChatListData, ChatRequest, UploadData, UploadJobData
-from app.services.chat_service import ChatService, chat_service
+from app.services.chat_service import ChatService
 from app.services.pdf_service import PDFProcessingService
 from app.services.pdf_queue_service import PDFQueueService
 from app.services.document_repository import DocumentRepository
@@ -23,7 +23,7 @@ router = APIRouter()
 
 
 def get_chat_service() -> ChatService:
-    return chat_service
+    return ChatService()
 
 
 def get_pdf_service(settings: Settings = Depends(get_settings)) -> PDFProcessingService:

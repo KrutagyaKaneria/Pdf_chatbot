@@ -27,10 +27,15 @@ class ChatService:
         document_repo: DocumentRepository | None = None,
         memory_service: MemoryService | None = None,
     ) -> None:
-        self.rag_service = rag_service or RAGService()
+        self.rag_service = rag_service
         self.repo = repo or ChatRepository()
         self.document_repo = document_repo or DocumentRepository()
         self.memory_service = memory_service or MemoryService(repo=self.repo)
+
+    def _get_rag_service(self) -> RAGService:
+        if self.rag_service is None:
+            self.rag_service = RAGService()
+        return self.rag_service
 
     def list_chats(self, owner_id: str | None = None) -> list[ChatSummary]:
         sessions = self.repo.list_chats(owner_id=owner_id)
@@ -132,7 +137,7 @@ class ChatService:
                 raise CollectionMismatchError("chat_id belongs to a different collection_name")
 
         memory = self.memory_service.get_memory(chat_id)
-        result = self.rag_service.answer(
+        result = self._get_rag_service().answer(
             question=question,
             collection_name=collection_name,
             chat_history=memory.recent_messages,
@@ -189,7 +194,7 @@ class ChatService:
         yield sse("meta", {"chat_id": chat_id, "collection_name": collection_name})
 
         memory = self.memory_service.get_memory(chat_id)
-        chunks_iter, sources = self.rag_service.stream_answer(
+        chunks_iter, sources = self._get_rag_service().stream_answer(
             question=question,
             collection_name=collection_name,
             chat_history=memory.recent_messages,
@@ -245,6 +250,3 @@ class ChatService:
             filename=filename,
             stored_filename=stored_filename,
         )
-
-
-chat_service = ChatService()
