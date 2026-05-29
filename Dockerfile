@@ -1,20 +1,16 @@
 FROM python:3.11-slim
 
-RUN pip install poetry==1.6.1
-
-RUN poetry config virtualenvs.create false
-
 WORKDIR /code
 
-COPY ./pyproject.toml ./README.md ./poetry.lock* ./
+RUN pip install --no-cache-dir --upgrade pip
+
+COPY ./pyproject.toml ./README.md ./
 
 COPY ./packages ./packages
 
-RUN poetry install  --no-interaction --no-ansi --no-root
-
 COPY ./app ./app
 
-RUN poetry install --no-interaction --no-ansi
+RUN pip install --no-cache-dir .
 
 EXPOSE 8080
 

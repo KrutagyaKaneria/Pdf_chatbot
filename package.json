@@ -1,5 +1,9 @@
 {
   "dependencies": {
     "@microsoft/fetch-event-source": "^2.0.1"
+  },
+  "scripts": {
+    "build": "npm --prefix frontend run build && rm -rf build && cp -R frontend/build build",
+    "postinstall": "npm --prefix frontend run build && rm -rf build && cp -R frontend/build build"
   }
 }
