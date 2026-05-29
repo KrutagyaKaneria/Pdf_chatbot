@@ -14,7 +14,7 @@ services:
       - key: AUTH_COOKIE_SECURE
         value: "true"
       - key: CORS_ORIGINS
-        sync: false
+        value: https://pdfs-chatbot.onrender.com
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
@@ -66,4 +66,6 @@ services:
     staticPublishPath: build
     envVars:
       - key: REACT_APP_API_BASE_URL
-        sync: false
+        value: https://pdf-chatbot-backend-xs1x.onrender.com
+      - key: REACT_APP_BACKEND_URL
+        value: https://pdf-chatbot-backend-xs1x.onrender.com
