@@ -60,11 +60,10 @@ async def upload_pdf(
     # Save locally first for processing fallback
     local_path = save_upload_file(file, settings.upload_dir, settings.max_upload_size_bytes)
 
-    # Try to upload to Cloudinary (optional)
+    # Try to upload to Cloudinary (optional) without loading the whole PDF into memory.
     cloud_meta = None
     try:
-        with open(local_path, "rb") as fh:
-            cloud_meta = cloudinary_storage.upload_pdf(fh.read(), file.filename or local_path.name, user_id)
+        cloud_meta = cloudinary_storage.upload_pdf(local_path, file.filename or local_path.name, user_id)
     except Exception:
         cloud_meta = None
 

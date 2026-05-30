@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from io import BytesIO
 import tempfile
 from pathlib import Path
 
@@ -74,9 +73,18 @@ class CloudinaryStorageService:
                 api_secret=api_secret,
             )
 
-    def upload_pdf(self, pdf_bytes: bytes, original_filename: str, owner_id: str) -> CloudinaryUploadResult:
-        if not pdf_bytes:
-            raise ValueError("PDF payload is empty")
+    def upload_pdf(self, pdf_source: bytes | str | Path, original_filename: str, owner_id: str) -> CloudinaryUploadResult:
+        if isinstance(pdf_source, (str, Path)):
+            pdf_path = Path(pdf_source)
+            if not pdf_path.exists() or not pdf_path.is_file():
+                raise ValueError("PDF payload file does not exist")
+            upload_input = str(pdf_path)
+            approx_size = pdf_path.stat().st_size
+        else:
+            if not pdf_source:
+                raise ValueError("PDF payload is empty")
+            upload_input = pdf_source
+            approx_size = len(pdf_source)
 
         owner_slug = owner_id.replace(" ", "_").strip() or "system"
         filename_slug = original_filename.rsplit(".", 1)[0].replace(" ", "_")[:80] or "uploaded"
@@ -84,7 +92,7 @@ class CloudinaryStorageService:
 
         logger.info("Uploading PDF to Cloudinary", extra={"owner_id": owner_id, "filename": original_filename})
         upload_result = cloudinary.uploader.upload(
-            BytesIO(pdf_bytes),
+            upload_input,
             resource_type="raw",
             public_id=public_id,
             use_filename=False,
@@ -97,7 +105,7 @@ class CloudinaryStorageService:
             public_id=str(upload_result.get("public_id") or public_id),
             secure_url=str(upload_result.get("secure_url") or upload_result.get("url") or ""),
             resource_type=str(upload_result.get("resource_type") or "raw"),
-            bytes=int(upload_result.get("bytes") or len(pdf_bytes)),
+            bytes=int(upload_result.get("bytes") or approx_size),
             mime_type=str(upload_result.get("format") or "application/pdf"),
         )
 
