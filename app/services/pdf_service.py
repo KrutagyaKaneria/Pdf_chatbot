@@ -3,6 +3,7 @@ import hashlib
 import shutil
 import tempfile
 from contextlib import contextmanager
+from itertools import islice
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -73,39 +74,49 @@ class PDFProcessingService:
             from langchain_text_splitters import RecursiveCharacterTextSplitter
 
             loader = PyPDFLoader(str(path))
-            docs = loader.load()
-            if not docs:
-                raise InvalidPDFError("No readable pages found in the uploaded PDF")
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=self.settings.chunk_size,
+                chunk_overlap=self.settings.chunk_overlap,
+                separators=["\n\n", "\n", ". ", " ", ""],
+            )
 
             chunks = []
-            if (self.settings.chunking_strategy or "").strip().lower() == "semantic":
-                try:
-                    from langchain_experimental.text_splitter import SemanticChunker
+            chunk_count = 0
+            page_found = False
+            page_iter = loader.lazy_load() if hasattr(loader, "lazy_load") else loader.load()
 
-                    semantic_splitter = SemanticChunker(get_embeddings())
-                    chunks = semantic_splitter.split_documents(docs)
-                except Exception as exc:
-                    logger.info(
-                        "Semantic chunking unavailable; falling back to recursive",
-                        extra={"reason": str(exc)},
-                    )
+            for page_doc in page_iter:
+                page_found = True
+                page_chunks = []
 
-            if not chunks:
-                text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=self.settings.chunk_size,
-                    chunk_overlap=self.settings.chunk_overlap,
-                    separators=["\n\n", "\n", ". ", " ", ""],
-                )
-                chunks = text_splitter.split_documents(docs)
+                if (self.settings.chunking_strategy or "").strip().lower() == "semantic":
+                    try:
+                        from langchain_experimental.text_splitter import SemanticChunker
 
-            for idx, ch in enumerate(chunks):
-                ch.metadata = ch.metadata or {}
-                ch.metadata.setdefault("chunk_index", idx)
-                src = Path(str(ch.metadata.get("source", path.name))).name
-                page = ch.metadata.get("page", "")
-                ch.metadata.setdefault("chunk_id", f"{src}:{page}:{idx}")
-                ch.metadata.setdefault("owner_id", owner)
-                ch.metadata.setdefault("collection_name", collection_name)
+                        semantic_splitter = SemanticChunker(get_embeddings())
+                        page_chunks = semantic_splitter.split_documents([page_doc])
+                    except Exception as exc:
+                        logger.info(
+                            "Semantic chunking unavailable; falling back to recursive",
+                            extra={"reason": str(exc)},
+                        )
+
+                if not page_chunks:
+                    page_chunks = text_splitter.split_documents([page_doc])
+
+                for ch in page_chunks:
+                    ch.metadata = ch.metadata or {}
+                    ch.metadata.setdefault("chunk_index", chunk_count)
+                    src = Path(str(ch.metadata.get("source", path.name))).name
+                    page = ch.metadata.get("page", "")
+                    ch.metadata.setdefault("chunk_id", f"{src}:{page}:{chunk_count}")
+                    ch.metadata.setdefault("owner_id", owner)
+                    ch.metadata.setdefault("collection_name", collection_name)
+                    chunks.append(ch)
+                    chunk_count += 1
+
+            if not page_found:
+                raise InvalidPDFError("No readable pages found in the uploaded PDF")
             if not chunks:
                 raise InvalidPDFError("No extractable text found in the uploaded PDF")
 
@@ -123,15 +134,19 @@ class PDFProcessingService:
                     "Creating PGVector collection and inserting embeddings",
                     extra={"upload_filename": path.name, "collection_name": collection_name, "chunk_count": len(chunks)},
                 )
-                PGVector.from_documents(
-                    documents=chunks,
-                    embedding=get_embeddings(),
-                    collection_name=collection_name,
+                embedding = get_embeddings()
+                vector_store = PGVector(
                     connection_string=self.settings.database_url,
+                    collection_name=collection_name,
+                    embedding_function=embedding,
                     use_jsonb=True,
                     pre_delete_collection=True,
                     create_extension=False,
                 )
+
+                batch_size = max(1, min(32, self.settings.retriever_k * 4))
+                for start in range(0, len(chunks), batch_size):
+                    vector_store.add_documents(chunks[start : start + batch_size])
             except Exception as exc:
                 raise self._vector_error_from_exception(exc) from exc
 
