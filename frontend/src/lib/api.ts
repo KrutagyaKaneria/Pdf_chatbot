@@ -47,6 +47,16 @@ const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
 let refreshPromise: Promise<AuthSession | null> | null = null
 
+type UploadJobResponse = {
+  job_id?: string
+  status_url?: string
+  state?: string
+  collection_name?: string
+  filename?: string
+  stored_filename?: string
+  error?: string
+}
+
 async function readJsonResponse<T>(response: Response): Promise<T | null> {
   const text = (await response.text()).trim()
   if (!text) {
@@ -106,6 +116,33 @@ async function parseAuthResponse(response: Response): Promise<AuthSession> {
   }
   storeAuthSession(accessToken, user)
   return { accessToken, user }
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function waitForUploadJob(statusUrl: string, timeoutMs = 10 * 60 * 1000): Promise<UploadJobResponse> {
+  const startedAt = Date.now()
+  let delayMs = 1500
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const status = await apiJson<{ data?: UploadJobResponse; state?: string; error?: string }>(statusUrl)
+    const payload = status.data ?? status
+    const state = (payload.state || status.state || '').toLowerCase()
+
+    if (state === 'succeeded' || state === 'failed') {
+      if (state === 'failed') {
+        throw new Error(payload.error || status.error || 'Upload failed')
+      }
+      return payload
+    }
+
+    await sleep(delayMs)
+    delayMs = Math.min(delayMs * 1.5, 5000)
+  }
+
+  throw new Error('Upload timed out while processing')
 }
 
 export async function loginRequest(email: string, password: string): Promise<AuthSession> {
@@ -247,6 +284,35 @@ export function uploadPdf(
             return
           }
         }
+
+        if (request.status === 202) {
+          try {
+            const initial = JSON.parse(request.responseText || '{}') as { data?: UploadJobResponse }
+            const jobData = initial.data || ({} as UploadJobResponse)
+            const statusUrl = jobData.status_url
+            if (statusUrl) {
+              const finalJob = await waitForUploadJob(statusUrl)
+              const responseBody = JSON.stringify({
+                success: true,
+                message: 'PDF uploaded and indexed successfully',
+                data: {
+                  collection_name: finalJob.collection_name,
+                  filename: finalJob.filename,
+                  stored_filename: finalJob.stored_filename,
+                },
+                collection_name: finalJob.collection_name,
+                filename: finalJob.filename,
+                stored_filename: finalJob.stored_filename,
+              })
+              resolve(new Response(responseBody, { status: 201, statusText: 'Created' }))
+              return
+            }
+          } catch (error) {
+            reject(error instanceof Error ? error : new Error('Upload accepted but job tracking failed'))
+            return
+          }
+        }
+
         resolve(new Response(request.responseText, { status: request.status, statusText: request.statusText }))
       }
       request.onerror = () => reject(new Error('Upload failed'))

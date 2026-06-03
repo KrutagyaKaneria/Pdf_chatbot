@@ -69,8 +69,12 @@ async def upload_pdf(
 
     stored_filename = cloud_meta.public_id if cloud_meta else local_path.name
 
+    # Background processing is opt-in. Keep the default path synchronous so the app
+    # can run on a single free Render web service without a separate worker.
+    use_background = background and pdf_queue.enabled()
+
     # Background processing: enqueue a job with cloud URL if available, else local path
-    if background:
+    if use_background:
         if not pdf_queue.enabled():
             Path(local_path).unlink(missing_ok=True)
             raise ValidationAppError(
