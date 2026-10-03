@@ -3,3 +3,6 @@ app/.env
 app/.env
 .env
 .fastembed_cache/
+app/uploads/
+uploads/
+/build/
