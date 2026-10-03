@@ -1,0 +1,11 @@
+.env
+app/.env
+app/uploads/
+uploads/
+**/__pycache__/
+.fastembed_cache/
+.venv/
+.venv-1/
+node_modules/
+frontend/
+build/
