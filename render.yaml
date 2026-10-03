@@ -1,12 +1,16 @@
 services:
   - type: web
     name: pdf-chatbot-backend
-    env: python
-    plan: standard
+    runtime: python
+    plan: free
     rootDir: .
-    buildCommand: poetry install --no-interaction --no-ansi
+    # Download the embedding model at build time: only the project directory survives into runtime.
+    buildCommand: poetry install --only main --no-interaction --no-ansi && poetry run python -m app.services.embedding_service
     startCommand: poetry run python app/server.py
+    healthCheckPath: /docs
     envVars:
+      - key: POETRY_VERSION
+        value: 2.3.2
       - key: ENVIRONMENT
         value: production
       - key: AUTH_COOKIE_SAMESITE
@@ -17,10 +21,22 @@ services:
         value: https://pdfs-chatbot.onrender.com
       - key: PDF_BACKGROUND_ENABLED
         value: "false"
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      # Model is fetched during the build; never download at runtime.
+      - key: EMBEDDINGS_LOCAL_ONLY
+        value: "true"
+      # Free instances have a fraction of a CPU; one ONNX thread keeps memory low.
+      - key: EMBEDDING_THREADS
+        value: "1"
+      # Redis Cloud free tier is 30 MB; don't keep embedding vectors for 30 days.
+      - key: CACHE_EMBEDDINGS_TTL_SECONDS
+        value: "86400"
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
         sync: false
+      # Either CLOUDINARY_URL or the three split variables.
       - key: CLOUDINARY_URL
         sync: false
       - key: CLOUDINARY_CLOUD_NAME
@@ -34,42 +50,17 @@ services:
       - key: JWT_SECRET
         sync: false
 
-  - type: worker
-    name: pdf-chatbot-worker
-    env: python
-    plan: standard
-    rootDir: .
-    buildCommand: poetry install --no-interaction --no-ansi
-    startCommand: poetry run python -m app.worker
-    envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: PDF_BACKGROUND_ENABLED
-        value: "false"
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: CLOUDINARY_URL
-        sync: false
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: JWT_SECRET
-        sync: false
-
-  - type: static
-    name: pdf-chatbot-frontend
+  - type: web
+    name: pdfs-chatbot
+    runtime: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: build
+    routes:
+      # React Router handles these paths client-side (/login, /signup, /workspace, ...).
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: REACT_APP_API_BASE_URL
-        value: https://pdf-chatbot-backend-xs1x.onrender.com
-      - key: REACT_APP_BACKEND_URL
         value: https://pdf-chatbot-backend-xs1x.onrender.com

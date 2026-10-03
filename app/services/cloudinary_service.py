@@ -3,10 +3,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 import tempfile
+import uuid
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import cloudinary
 import cloudinary.uploader
+import cloudinary.utils
 import requests
 
 from app.core.config import Settings, get_settings
@@ -25,6 +28,17 @@ def _ensure_config(settings: Settings | None = None) -> None:
             api_key=getattr(settings, "cloudinary_api_key", None) or os.getenv("CLOUDINARY_API_KEY"),
             api_secret=getattr(settings, "cloudinary_api_secret", None) or os.getenv("CLOUDINARY_API_SECRET"),
         )
+
+
+def open_remote_stream(url: str) -> requests.Response:
+    """Open a streaming GET to a remote file; the caller must close the response."""
+    response = requests.get(url, stream=True, timeout=30)
+    try:
+        response.raise_for_status()
+    except Exception:
+        response.close()
+        raise
+    return response
 
 
 def download_url_to_temp(url: str) -> Path:
@@ -60,7 +74,14 @@ class CloudinaryStorageService:
 
     def _configure(self) -> None:
         if self.settings.cloudinary_url:
-            cloudinary.config(cloudinary_url=self.settings.cloudinary_url)
+            # config(cloudinary_url=...) doesn't parse the URL; the SDK only reads CLOUDINARY_URL from
+            # the environment at import time, which may be before .env is loaded.
+            parsed = urlparse(self.settings.cloudinary_url.strip())
+            cloudinary.config(
+                cloud_name=parsed.hostname,
+                api_key=unquote(parsed.username or ""),
+                api_secret=unquote(parsed.password or ""),
+            )
             return
 
         cloud_name = self.settings.cloudinary_cloud_name
@@ -88,12 +109,15 @@ class CloudinaryStorageService:
 
         owner_slug = owner_id.replace(" ", "_").strip() or "system"
         filename_slug = original_filename.rsplit(".", 1)[0].replace(" ", "_")[:80] or "uploaded"
-        public_id = f"{self.settings.cloudinary_folder}/{owner_slug}/{filename_slug}"
+        # Cloudinary ignores unique_filename when public_id is given; add a suffix so same-named uploads don't overwrite.
+        public_id = f"{self.settings.cloudinary_folder}/{owner_slug}/{filename_slug}_{uuid.uuid4().hex[:10]}.pdf"
 
-        logger.info("Uploading PDF to Cloudinary", extra={"owner_id": owner_id, "filename": original_filename})
+        logger.info("Uploading PDF to Cloudinary", extra={"owner_id": owner_id, "upload_filename": original_filename})
         upload_result = cloudinary.uploader.upload(
             upload_input,
             resource_type="raw",
+            # Private: PDFs are only reachable through signed URLs (see download_url), never a public CDN link.
+            type="private",
             public_id=public_id,
             use_filename=False,
             unique_filename=True,
@@ -109,10 +133,14 @@ class CloudinaryStorageService:
             mime_type=str(upload_result.get("format") or "application/pdf"),
         )
 
+    def download_url(self, public_id: str) -> str:
+        """Short-lived signed URL for a private raw upload (works even with PDF delivery disabled)."""
+        return cloudinary.utils.private_download_url(public_id, "", resource_type="raw", type="private")
+
     def delete_pdf(self, public_id: str) -> None:
         if not public_id:
             return
         try:
-            cloudinary.uploader.destroy(public_id, resource_type="raw")
+            cloudinary.uploader.destroy(public_id, resource_type="raw", type="private")
         except Exception as exc:
             logger.debug("Cloudinary delete failed", extra={"public_id": public_id, "reason": str(exc)})

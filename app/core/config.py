@@ -29,7 +29,7 @@ class Settings(BaseModel):
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"])
 
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
     llm_temperature: float = 0.2
     llm_max_tokens: int = 512
 
@@ -62,7 +62,10 @@ class Settings(BaseModel):
     max_upload_size_mb: int = 25
 
     embedding_model: str = "all-MiniLM-L6-v2"
-    embeddings_local_only: bool = True
+    embeddings_local_only: bool = False
+    embedding_cache_dir: Path = ROOT_DIR / ".fastembed_cache"
+    embedding_batch_size: int = 4
+    embedding_threads: int | None = None
     chunking_strategy: str = "recursive"  # recursive | semantic
     chunk_size: int = 750
     chunk_overlap: int = 120
@@ -184,7 +187,7 @@ def get_settings() -> Settings:
         environment=environment,
         cors_origins=cors_origins,
         groq_api_key=os.getenv("GROQ_API_KEY", ""),
-        groq_model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        groq_model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
         llm_max_tokens=int(os.getenv("LLM_MAX_TOKENS", "512")),
         redis_url=os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"),
@@ -216,7 +219,10 @@ def get_settings() -> Settings:
         upload_dir=os.getenv("UPLOAD_DIR", "uploads"),
         max_upload_size_mb=int(os.getenv("MAX_UPLOAD_SIZE_MB", "25")),
         embedding_model=os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
-        embeddings_local_only=os.getenv("EMBEDDINGS_LOCAL_ONLY", "true").lower() == "true",
+        embeddings_local_only=os.getenv("EMBEDDINGS_LOCAL_ONLY", "false").lower() == "true",
+        embedding_cache_dir=os.getenv("EMBEDDING_CACHE_DIR", str(ROOT_DIR / ".fastembed_cache")),
+        embedding_batch_size=int(os.getenv("EMBEDDING_BATCH_SIZE", "4")),
+        embedding_threads=int(os.getenv("EMBEDDING_THREADS")) if os.getenv("EMBEDDING_THREADS") else None,
         chunking_strategy=os.getenv("CHUNKING_STRATEGY", "recursive"),
         chunk_size=int(os.getenv("CHUNK_SIZE", "750")),
         chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "120")),

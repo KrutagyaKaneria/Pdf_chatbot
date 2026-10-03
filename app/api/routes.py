@@ -1,10 +1,10 @@
 import uuid
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.concurrency import iterate_in_threadpool, run_in_threadpool
-from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import Settings, get_settings
@@ -13,12 +13,14 @@ from app.services.chat_service import ChatService
 from app.services.pdf_service import PDFProcessingService
 from app.services.pdf_queue_service import PDFQueueService
 from app.services.document_repository import DocumentRepository
-from app.services.cloudinary_service import CloudinaryStorageService, download_url_to_temp
+from app.services.cloudinary_service import CloudinaryStorageService, open_remote_stream
 from app.core.exceptions import ValidationAppError
 from app.core.auth import get_current_user
+from app.core.logging import get_logger
 from app.utils.files import save_upload_file
 from app.utils.responses import success_response
 
+logger = get_logger(__name__)
 router = APIRouter()
 
 
@@ -64,7 +66,8 @@ async def upload_pdf(
     cloud_meta = None
     try:
         cloud_meta = cloudinary_storage.upload_pdf(local_path, file.filename or local_path.name, user_id)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Cloudinary upload failed; keeping PDF on local disk: %s", exc)
         cloud_meta = None
 
     stored_filename = cloud_meta.public_id if cloud_meta else local_path.name
@@ -82,7 +85,7 @@ async def upload_pdf(
             )
 
         job_id = pdf_queue.enqueue(
-            source_url=(cloud_meta.secure_url if cloud_meta else str(local_path)),
+            source_url=(cloudinary_storage.download_url(cloud_meta.public_id) if cloud_meta else str(local_path)),
             filename=file.filename or local_path.name,
             stored_filename=stored_filename,
             owner_id=user_id,
@@ -112,30 +115,31 @@ async def upload_pdf(
             status_url=data.status_url,
         )
 
-    # Synchronous processing: if cloud copy exists, download temp and process; otherwise process local file
-    temp_path: Optional[Path] = None
+    # Synchronous processing: index the local copy (no need to download it back from Cloudinary).
     try:
-        if cloud_meta and cloud_meta.secure_url:
-            temp_path = download_url_to_temp(cloud_meta.secure_url)
-            collection_name = await run_in_threadpool(
-                pdf_service.process_uploaded_pdf,
-                temp_path,
-                user_id,
-                file.filename or temp_path.name,
-                cloud_meta.public_id,
-            )
-        else:
-            collection_name = await run_in_threadpool(
-                pdf_service.process_uploaded_pdf,
-                local_path,
-                user_id,
-                file.filename or local_path.name,
-                local_path.name,
+        collection_name = await run_in_threadpool(
+            pdf_service.process_uploaded_pdf,
+            local_path,
+            user_id,
+            file.filename or local_path.name,
+            stored_filename,
+        )
+        if cloud_meta:
+            # Record where the PDF lives so /pdfs/{stored_filename} can serve it after the local copy is gone.
+            await run_in_threadpool(
+                doc_repo.upsert_document,
+                owner_id=user_id,
+                collection_name=collection_name,
+                filename=file.filename or local_path.name,
+                stored_filename=stored_filename,
+                cloudinary_public_id=cloud_meta.public_id,
+                cloudinary_url=cloud_meta.secure_url,
+                cloudinary_resource_type=cloud_meta.resource_type,
+                file_size_bytes=cloud_meta.bytes,
+                mime_type=cloud_meta.mime_type,
             )
     finally:
-        if temp_path and temp_path.exists():
-            temp_path.unlink(missing_ok=True)
-        # remove local copy if we uploaded to cloud to save disk
+        # Remove the local copy once it's in Cloudinary: Render's disk is ephemeral anyway.
         if cloud_meta:
             Path(local_path).unlink(missing_ok=True)
 
@@ -178,11 +182,12 @@ async def get_upload_job(job_id: str, pdf_queue: PDFQueueService = Depends(get_p
     )
 
 
-@router.get("/pdfs/{stored_filename}")
+@router.get("/pdfs/{stored_filename:path}")
 async def get_pdf_file(
     stored_filename: str,
     settings: Settings = Depends(get_settings),
     doc_repo: DocumentRepository = Depends(get_document_repo),
+    cloudinary_storage: CloudinaryStorageService = Depends(get_cloudinary_storage),
     current_user: dict = Depends(get_current_user),
 ):
     user_id = (current_user.get("sub") or "").strip()
@@ -193,10 +198,16 @@ async def get_pdf_file(
     if not doc:
         raise StarletteHTTPException(status_code=404, detail="PDF not found")
 
-    # Prefer cloud URL when available
-    cloud_url = getattr(doc, "cloudinary_url", None) or getattr(doc, "cloudinary_secure_url", None)
-    if cloud_url:
-        return RedirectResponse(url=cloud_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    # Prefer the Cloudinary copy when available. Stream it through the API rather than redirecting: the browser
+    # fetches with credentials, and a cross-origin redirect to Cloudinary would be blocked by CORS.
+    cloud_public_id = getattr(doc, "cloudinary_public_id", None)
+    if cloud_public_id:
+        upstream = await run_in_threadpool(open_remote_stream, cloudinary_storage.download_url(cloud_public_id))
+        return StreamingResponse(
+            iterate_in_threadpool(upstream.iter_content(chunk_size=256 * 1024)),
+            media_type="application/pdf",
+            background=BackgroundTask(upstream.close),
+        )
 
     file_path = settings.upload_dir / stored_filename
     if not file_path.exists() or not file_path.is_file():

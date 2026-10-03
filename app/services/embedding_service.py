@@ -1,31 +1,59 @@
-import os
 import hashlib
 from functools import lru_cache
 from typing import Any
 
 from app.core.config import Settings, get_settings
+from app.core.logging import get_logger
 from app.services.cache_service import CacheKey, CacheService, stable_hash
 
 
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+logger = get_logger(__name__)
+
+
+def _fastembed_model_name(model_name: str) -> str:
+    # fastembed uses the full Hugging Face repo id; keep accepting the short sentence-transformers names.
+    return model_name if "/" in model_name else f"sentence-transformers/{model_name}"
 
 
 @lru_cache
 def get_embeddings():
     settings: Settings = get_settings()
-    model_kwargs = {"local_files_only": True} if settings.embeddings_local_only else {}
     try:
-        # Import lazily so startup does not load the Hugging Face stack unless embeddings are actually used.
-        from langchain_huggingface import HuggingFaceEmbeddings
-
-        base = HuggingFaceEmbeddings(
-            model_name=settings.embedding_model,
-            model_kwargs=model_kwargs,
-        )
+        base = FastEmbedEmbeddings(settings)
     except Exception as exc:
+        logger.warning(
+            "Embedding model unavailable; using low-quality hash fallback embeddings",
+            extra={"model": settings.embedding_model, "reason": str(exc)},
+        )
         return CachedEmbeddings(FallbackEmbeddings(settings=settings, reason=str(exc)), settings=settings)
     return CachedEmbeddings(base, settings=settings)
+
+
+class FastEmbedEmbeddings:
+    """ONNX-based embeddings (no torch), producing the same vectors as sentence-transformers."""
+
+    def __init__(self, settings: Settings) -> None:
+        # Import lazily so startup does not load onnxruntime unless embeddings are actually used.
+        from fastembed import TextEmbedding
+
+        # Keep the short name so Redis cache keys stay valid across the sentence-transformers -> fastembed switch.
+        self.model_name = settings.embedding_model
+        self._batch_size = settings.embedding_batch_size
+        self._model = TextEmbedding(
+            model_name=_fastembed_model_name(settings.embedding_model),
+            cache_dir=str(settings.embedding_cache_dir),
+            local_files_only=settings.embeddings_local_only,
+            threads=settings.embedding_threads,
+            # onnxruntime's arena keeps every batch's peak allocation forever (~700 MB after a few uploads),
+            # which doesn't fit a 512 MB instance. Without it memory returns to baseline after each batch.
+            enable_cpu_mem_arena=False,
+        )
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [vec.tolist() for vec in self._model.embed(texts, batch_size=self._batch_size)]
 
 
 class CachedEmbeddings:
@@ -110,3 +138,11 @@ class FallbackEmbeddings:
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return [self._encode(text) for text in texts]
+
+
+if __name__ == "__main__":
+    # Pre-download the embedding model (used by the Render build so the server starts with it on disk).
+    embeddings = get_embeddings()
+    if isinstance(embeddings._base, FallbackEmbeddings):
+        raise SystemExit(f"Embedding model download failed: {embeddings._base._reason}")
+    print(f"Embedding model ready: {embeddings.model_name} ({len(embeddings._base.embed_query('ok'))} dims)")
