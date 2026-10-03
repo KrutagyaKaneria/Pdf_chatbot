@@ -246,6 +246,20 @@ export async function apiFetch(input: string, init: RequestInit = {}) {
   return retryAfterRefresh(`${API_BASE_URL}${input}`, { ...init, headers }, response)
 }
 
+// Free Render instances sleep when idle and take ~1 minute to wake; this lets the UI tell the user.
+export async function pingBackend(timeoutMs = 15000): Promise<boolean> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, { signal: controller.signal, cache: 'no-store' })
+    return response.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function apiJson<T>(input: string, init: RequestInit = {}): Promise<T> {
   const response = await apiFetch(input, init)
   const payload = await readJsonResponse<T>(response)

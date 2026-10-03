@@ -6,24 +6,28 @@ import ArchitecturePage from './pages/ArchitecturePage'
 import {ProtectedRoute} from './auth/ProtectedRoute'
 import {LoginPage} from './auth/LoginPage'
 import {SignupPage} from './auth/SignupPage'
+import {ServerWakeBanner} from './components/layout/ServerWakeBanner'
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/architecture" element={<ArchitecturePage />} />
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <WorkspacePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <ServerWakeBanner />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/architecture" element={<ArchitecturePage />} />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <WorkspacePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
 

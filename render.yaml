@@ -7,7 +7,7 @@ services:
     # Download the embedding model at build time: only the project directory survives into runtime.
     buildCommand: poetry install --only main --no-interaction --no-ansi && poetry run python -m app.services.embedding_service
     startCommand: poetry run python app/server.py
-    healthCheckPath: /docs
+    healthCheckPath: /health
     envVars:
       - key: POETRY_VERSION
         value: 2.3.2
