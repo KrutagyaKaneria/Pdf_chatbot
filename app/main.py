@@ -48,9 +48,10 @@ def create_app() -> FastAPI:
     async def redirect_root_to_docs():
         return RedirectResponse("/docs")
 
-    @app.get("/health")
+    @app.api_route("/health", methods=["GET", "HEAD"])
     async def health():
-        # Cheap endpoint for Render health checks and the frontend's wake-up ping.
+        # Cheap endpoint for Render health checks, the frontend's wake-up ping and uptime monitors
+        # (UptimeRobot sends HEAD by default).
         return {"status": "ok"}
 
     logger.info("FastAPI application initialized")
